@@ -22,9 +22,9 @@ export function createStore(options = {}) {
 
   function fresh() {
     return {
-      id: makeId(), startedAt: now(), screen: 'screening', status: 'in_progress',
+      id: makeId(), protocolVersion: 2, startedAt: now(), screen: 'screening', status: 'in_progress',
       screening: {}, answers: {}, events: [],
-      measurement: { started: false, firstButton: null, entryRoute: null, returnCount: 0, excluded: false, exclusionReason: null, arrived: false },
+      measurement: { phase: 'A', started: false, firstButton: null, entryRoute: null, returnCount: 0, excluded: false, exclusionReason: null, arrived: false },
     };
   }
   function save() {
@@ -41,10 +41,14 @@ export function createStore(options = {}) {
     } catch (cause) {
       error = `브라우저에 저장하지 못했습니다. 이 화면을 닫기 전에 기록을 내려받아 주세요. (${cause.message})`;
       return false;
+    } finally {
+      if (typeof globalThis.dispatchEvent === 'function' && typeof globalThis.CustomEvent === 'function') {
+        globalThis.dispatchEvent(new CustomEvent('ut-record-change', { detail: session }));
+      }
     }
   }
   function log(screen, button, extra = {}) {
-    session.events.push({ ...extra, id: makeId(), type: 'tap', screen, button, at: now() });
+    session.events.push({ ...extra, phase: session.measurement.phase || 'A', id: makeId(), type: 'tap', screen, button, at: now() });
     return save();
   }
   const api = {
@@ -53,18 +57,30 @@ export function createStore(options = {}) {
     save, log,
     setScreen(screen) { session.screen = screen; return save(); },
     firstAction(button) {
+      if (session.measurement.phase === 'B' || session.measurement.arrived) return true;
       session.measurement.started = true;
       if (session.measurement.firstButton === null) session.measurement.firstButton = button;
       return save();
     },
     arrive(route) {
+      if (session.measurement.phase === 'B') {
+        if (!session.measurement.secondaryArrived) {
+          session.measurement.secondaryArrived = true;
+          session.measurement.secondaryEntryRoute = ['modal_payment', 'bottom_tab'].includes(route) ? route : 'other';
+        }
+        return save();
+      }
       if (!session.measurement.arrived) {
         session.measurement.arrived = true;
         session.measurement.entryRoute = ['modal_payment', 'bottom_tab'].includes(route) ? route : 'other';
       }
       return save();
     },
-    returnToModal() { session.measurement.returnCount += 1; return save(); },
+    returnToModal() {
+      if (session.measurement.phase === 'B') session.measurement.secondaryReturnCount = (session.measurement.secondaryReturnCount || 0) + 1;
+      else if (!session.measurement.arrived) session.measurement.returnCount += 1;
+      return save();
+    },
     exclude(reason) {
       session.measurement.excluded = true;
       session.measurement.exclusionReason = reason;
