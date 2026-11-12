@@ -45,7 +45,17 @@ function modal(zero=false) {return `${zero?home():detail()}<div class="modal-bac
 function phone() {return `<section class="phone"><div class="phone-top"><span>8:08</span><span>LTE &nbsp;51 ▰</span></div><p class="phone-timer" id="call-timer">04:08</p><h1>070-8016-9100</h1><div class="shield">${icon('shield')}</div><div class="phone-space"></div>${btn('assist','통화 어시스트','assist',true)}<div class="call-panel"><div class="call-controls">${[['record','녹음',''],['video','영상통화','dim'],['bluetooth','블루투스',''],['speaker','스피커','speaker'],['mic','내 소리 차단',''],['keypad','키패드','']].map(([i,l,c])=>btn('call-'+i,l,'call-control '+c,true,icon(i)+l)).join('')}</div>${btn('end-call','통화 종료','hangup',false,icon('phone'))}</div></section>`;}
 function payment() {return `<div class="app-shell payment"><h1>이용료 결제</h1><section class="points"><p>보유포인트</p>${coin}<strong>0</strong></section><div class="payment-body"><h2>결제금액 선택 <small>(VAT별도)</small></h2><div class="amounts">${[30000,50000,100000,200000,300000,500000].map((n,i)=>btn('amount-'+n,'포인트 '+n.toLocaleString('ko-KR'),'amount-row',true,`<span class="radio ${i===0?'selected':''}" aria-hidden="true"></span><strong>포인트 ${n.toLocaleString('ko-KR')}</strong><small>${n.toLocaleString('ko-KR')}원</small>`)).join('')}</div><h2>결제방법 선택</h2><div class="methods">${btn('method-card','신용카드','method selected',true,icon('card')+'신용카드')}${btn('method-naver','네이버 페이','method',true,'<span class="naver" aria-hidden="true">N</span>네이버 페이')}${btn('method-kakao','카카오 페이','method',true,'<span class="kakao" aria-hidden="true">pay</span>카카오 페이')}${btn('method-account','가상계좌','method',true,icon('card')+'가상계좌')}</div><h2>결제금액</h2><div class="totals"><div><span>결제금액 (VAT별도)</span><strong>30,000 원</strong></div><div><span>총 결제금액</span><strong>33,000 원</strong></div></div></div><section class="purchase-guide"><h2>포인트 구매 안내</h2><p>· 포인트 구매/이용 내역은 마이메뉴 &gt; 상담내역, 결제내역에서 확인하실 수 있습니다.</p><p>· 정당한 이유 없이 결제/환불을 반복하시는 경우 이용이 제한될 수 있습니다.</p><p>· 이용하지 않은 포인트에 한 하여 결제일로부터 7일 이내에 청약철회 등 환불을 하실 수 있습니다.</p><p class="red">* 미성년자는 사주모아 운세상담을 이용하실 수 없습니다.</p></section><footer class="app-footer"><strong>Sajumoa</strong><p>넥스트벤처스 사업자정보</p><p>이용약관 &nbsp; 개인정보취급방침</p></footer><div class="payment-action">${btn('pay','결제','',true)}</div>${nav('coins',true)}</div>`;}
 function arrivalDialog(){return `<div class="arrival-backdrop"><section class="arrival-dialog" role="dialog" aria-modal="true" aria-labelledby="arrival-title" aria-describedby="arrival-description"><span class="arrival-label">사용자 테스트 안내</span><h2 id="arrival-title">여기까지가 과업입니다.</h2><p id="arrival-description">다음 질문으로 넘어갑니다.</p>${btn('to-questions','질문으로 가기','primary')}</section></div>`;}
-const questionNumbers={q1:1,q4:2,q5:3,q6:4};
+const questionNumbers={q1:1,paymentFactors:2,q4:3,q5:4};
+const paymentFactorOptions=[
+ ['need','추가 상담이 필요한 정도'],
+ ['expected_help','상담에서 얻을 수 있을 것으로 기대하는 도움'],
+ ['minimum_amount','한 번에 충전해야 하는 최소 금액'],
+ ['available_time','충전한 금액으로 상담할 수 있는 시간'],
+ ['benefits','할인·추가 포인트 같은 혜택'],
+ ['findability','충전 화면을 찾기 쉬운 정도'],
+ ['other','기타 - 직접 입력'],
+ ['undecided','아직 판단하기 어려워요'],
+];
 function questionReference(id){
  const key=id==='q4'?'initial':['q5','q6'].includes(id)?'payment':'return',reference=referenceScreens[key];
  return `<figure class="question-reference" data-question="${id}" data-reference="${key}"><img src="${reference.src}" alt="${esc(reference.alt)}" width="390" height="${key==='payment'?'844':'780'}" loading="lazy"><figcaption><span>${reference.caption}</span><button type="button" class="reference-open" data-action="reference-open" data-label="${questionNumbers[id]}번 질문 회상 화면 크게 보기" data-question="${id}" data-reference="${key}">크게 보기</button></figcaption></figure>`;
@@ -56,10 +66,14 @@ function textQuestion(id,question,answers,help=''){
 function ratingQuestion(id,question,labels,answers){
  return `<fieldset class="answer-block rating-block"><legend id="${id}-label">${question} <span class="required-label">필수</span></legend>${questionReference(id)}<div class="rating-scale" role="radiogroup" data-rating-name="${id}" aria-labelledby="${id}-label" aria-describedby="${id}-error" aria-required="true">${labels.map((label,index)=>`<label class="rating-option"><input type="radio" id="${id}-${index+1}" name="${id}" value="${index+1}" required aria-describedby="${id}-error" ${String(answers[id])===String(index+1)?'checked':''}><span class="rating-number">${index+1}</span><span class="rating-label">${label}</span></label>`).join('')}</div><p class="form-error" id="${id}-error"></p></fieldset>`;
 }
+function paymentFactorsQuestion(answers){
+ const selected=Array.isArray(answers.paymentFactors)?answers.paymentFactors:[],other=selected.includes('other');
+ return `<fieldset class="answer-block factor-block"><legend id="paymentFactors-label">2. 사주모아에서 내 돈으로 추가 상담을 받을지 결정한다면, 중요하게 고려할 요소를 최대 2가지 골라 주세요. <span class="required-label">필수</span></legend><p id="paymentFactors-help" class="answer-help">‘아직 판단하기 어려워요’는 단독으로 선택해 주세요.</p><div class="factor-options" data-factor-name="paymentFactors" role="group" aria-labelledby="paymentFactors-label" aria-describedby="paymentFactors-help paymentFactors-error">${paymentFactorOptions.map(([id,label])=>`<label class="factor-option"><input type="checkbox" name="paymentFactors" value="${id}" ${selected.includes(id)?'checked':''}><span>${label}</span></label>`).join('')}</div><p class="form-error" id="paymentFactors-error" role="status" aria-live="polite"></p><div class="factor-other" id="paymentFactors-other-field" ${other?'':'hidden'}><label for="paymentFactorsOther">기타 내용을 적어 주세요. <span class="required-label">필수</span></label><textarea id="paymentFactorsOther" name="paymentFactorsOther" maxlength="20000" aria-describedby="paymentFactorsOther-error" ${other?'required':'disabled'}>${esc(answers.paymentFactorsOther)}</textarea><p class="form-error" id="paymentFactorsOther-error"></p></div><div class="factor-reason"><label for="paymentFactorsReason">선택한 이유가 있다면 짧게 적어 주세요. <span class="optional-label">선택</span></label><textarea id="paymentFactorsReason" name="paymentFactorsReason" maxlength="20000" placeholder="선택한 요소가 추가 결제를 하거나 망설이는 데 어떤 영향을 주는지 적어 주세요." aria-describedby="paymentFactorsReason-error">${esc(answers.paymentFactorsReason)}</textarea><p class="form-error" id="paymentFactorsReason-error"></p></div></fieldset>`;
+}
 function questions() {
- if(store.session.questionnaireVersion!==3){store.session.questionnaireVersion=3;store.save();}
+ if(store.session.questionnaireVersion!==4){store.session.questionnaireVersion=4;store.save();}
  const a=store.session.answers||{};
- return study(`<p class="step">마지막 단계</p><h1>질문 (사실 회상부터)</h1><p class="muted">모든 질문에 답해 주세요. 서술형 질문에서 떠오르는 내용이 없으면 ‘없어요’라고 적어도 됩니다.</p><form id="answers-form" novalidate>${textQuestion('q1','1. 아래 화면에서 처음에 무엇을 누르셨어요? 무엇을 보고 누르셨어요?',a)}${ratingQuestion('q4','2. 이번 체험에서 받은 10,000포인트의 가치를 어떻게 느끼셨나요?',['매우낮음','낮음','보통','높음','매우높음'],a)}${ratingQuestion('q5','3. 최소 충전금액 30,000원(VAT 별도)은 어떻게 느껴지셨나요?',['매우저렴','저렴','보통','비쌈','매우비쌈'],a)}${textQuestion('q6','4. 최소 충전금액은 추가 결제 여부를 결정하는 데 어떤 영향을 주었나요?',a,'영향이 없었다면 영향 없음이라고 적어도 됩니다.')}<p class="muted">${previewMode?'미리보기에서는 버튼 선택과 답변이 저장·전송되지 않습니다.':'버튼 선택과 작성한 답변은 테스트 결과로 자동 저장됩니다.'}</p><button class="primary" type="submit" data-action="submit" data-label="제출">제출</button></form>`,'questions');
+ return study(`<p class="step">마지막 단계</p><h1>질문 (사실 회상부터)</h1><p class="muted">필수 질문에 답해 주세요. 첫 질문에서 떠오르는 내용이 없으면 ‘없어요’라고 적어도 됩니다.</p><form id="answers-form" novalidate>${textQuestion('q1','1. 아래 화면에서 처음에 무엇을 누르셨어요? 무엇을 보고 누르셨어요?',a)}${paymentFactorsQuestion(a)}${ratingQuestion('q4','3. 이번 체험에서 받은 10,000포인트의 가치를 어떻게 느끼셨나요?',['매우낮음','낮음','보통','높음','매우높음'],a)}${ratingQuestion('q5','4. 최소 충전금액 30,000원(VAT 별도)은 어떻게 느껴지셨나요?',['매우저렴','저렴','보통','비쌈','매우비쌈'],a)}<p class="muted">${previewMode?'미리보기에서는 버튼 선택과 답변이 저장·전송되지 않습니다.':'버튼 선택과 작성한 답변은 테스트 결과로 자동 저장됩니다.'}</p><button class="primary" type="submit" data-action="submit" data-label="제출">제출</button></form>`,'questions');
 }
 function closeQuestionReference(restoreFocus=true){
  if(!referenceOverlay)return;
@@ -234,7 +248,26 @@ app.addEventListener('click',event=>{
 app.addEventListener('input',event=>{if(guard.isOwner&&ownerReady&&event.target.matches('textarea')&&remote.status.state!=='conflict'){store.session.answers[event.target.name]=event.target.value;store.save();if(event.target.value.trim()){event.target.removeAttribute('aria-invalid');const hint=document.querySelector('#'+event.target.id+'-error');if(hint)hint.textContent='';}showStorageError();}});
 app.addEventListener('change',event=>{
  const input=event.target;
- if(!guard.isOwner||!ownerReady||screen!=='questions'||remote.status.state==='conflict'||!input.matches('input[type="radio"][name="q4"],input[type="radio"][name="q5"]'))return;
+ if(!guard.isOwner||!ownerReady||screen!=='questions'||remote.status.state==='conflict')return;
+ if(input.matches('input[type="checkbox"][name="paymentFactors"]')){
+  const group=input.closest('[data-factor-name]'),inputs=[...group.querySelectorAll('input')],hint=document.querySelector('#paymentFactors-error');
+  if(input.checked&&input.value==='undecided')inputs.forEach(item=>{if(item!==input)item.checked=false;});
+  else if(input.checked){
+   inputs.find(item=>item.value==='undecided').checked=false;
+   if(inputs.filter(item=>item.checked).length>2){
+    input.checked=false;hint.textContent='최대 2가지까지 선택할 수 있어요.';
+    store.log('questions','2번 질문 선택 시도: 최대 2개 초과',{action:'answer-select-blocked'});showStorageError();return;
+   }
+  }
+  const values=inputs.filter(item=>item.checked).map(item=>item.value),other=values.includes('other'),otherInput=document.querySelector('#paymentFactorsOther');
+  document.querySelector('#paymentFactors-other-field').hidden=!other;otherInput.disabled=!other;otherInput.required=other;
+  if(!other){otherInput.value='';delete store.session.answers.paymentFactorsOther;otherInput.removeAttribute('aria-invalid');document.querySelector('#paymentFactorsOther-error').textContent='';}
+  store.session.answers.paymentFactors=values;
+  const label=paymentFactorOptions.find(([id])=>id===input.value)?.[1]||input.value;
+  store.log('questions',`2번 질문 ${input.checked?'선택':'선택 해제'}: ${label}`,{action:'answer-select'});
+  group.removeAttribute('aria-invalid');hint.textContent='';showStorageError();return;
+ }
+ if(!input.matches('input[type="radio"][name="q4"],input[type="radio"][name="q5"]'))return;
  store.session.answers[input.name]=input.value;
  store.log('questions',`${questionNumbers[input.name]}번 질문 ${input.value}점 선택`,{action:'answer-select'});
  const group=input.closest('[data-rating-name]');group.removeAttribute('aria-invalid');group.querySelectorAll('input').forEach(radio=>radio.removeAttribute('aria-invalid'));
@@ -243,12 +276,16 @@ app.addEventListener('change',event=>{
 app.addEventListener('submit',event=>{
  if(event.target.id!=='answers-form')return;event.preventDefault();
  if(!guard.isOwner||!ownerReady||remote.status.state==='conflict')return;
- const answers=Object.fromEntries(new FormData(event.target));let first;
- for(const field of event.target.querySelectorAll('textarea,[data-rating-name]')){
+ const data=new FormData(event.target),answers=Object.fromEntries(data);answers.paymentFactors=data.getAll('paymentFactors');let first;
+ for(const field of event.target.querySelectorAll('textarea,[data-rating-name],[data-factor-name]')){
   if(field.matches('textarea')){
-   const empty=!field.value.trim();field.setAttribute('aria-invalid',String(empty));
-   document.querySelector('#'+field.id+'-error').textContent=empty?(field.id==='q6'?'답변을 입력해 주세요. 영향이 없었다면 영향 없음이라고 적어도 됩니다.':'답변을 입력해 주세요. 떠오르는 내용이 없으면 ‘없어요’라고 적어 주세요.'):'';
+   const empty=!field.disabled&&field.required&&!field.value.trim();field.setAttribute('aria-invalid',String(empty));
+   document.querySelector('#'+field.id+'-error').textContent=empty?(field.id==='paymentFactorsOther'?'기타 내용을 입력해 주세요.':'답변을 입력해 주세요. 떠오르는 내용이 없으면 ‘없어요’라고 적어 주세요.'):'';
    if(empty&&!first)first=field;
+  }else if(field.matches('[data-factor-name]')){
+   const values=answers.paymentFactors,invalid=values.length<1||values.length>2||(values.includes('undecided')&&values.length!==1);
+   field.setAttribute('aria-invalid',String(invalid));document.querySelector('#paymentFactors-error').textContent=invalid?'중요하게 고려할 요소를 1~2가지 선택해 주세요.':'';
+   if(invalid&&!first)first=field.querySelector('input');
   }else{
    const checked=field.querySelector('input:checked'),empty=!checked||!['1','2','3','4','5'].includes(checked.value);
    field.setAttribute('aria-invalid',String(empty));field.querySelectorAll('input').forEach(input=>input.setAttribute('aria-invalid',String(empty)));
@@ -257,7 +294,7 @@ app.addEventListener('submit',event=>{
   }
  }
  if(first){store.log(screen,'제출 시도: 필수 답변 누락',{action:'submit_invalid'});first.focus();return;}
- store.session.questionnaireVersion=3;store.log(screen,'제출',{action:'submit'});store.submit(answers);navigate('thanks');void remote.flush();
+ store.session.questionnaireVersion=4;store.log(screen,'제출',{action:'submit'});store.submit(answers);navigate('thanks');void remote.flush();
 });
 document.addEventListener('keydown',event=>{
  if(!guard.isOwner||!ownerReady)return;
