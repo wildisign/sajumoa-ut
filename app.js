@@ -17,7 +17,14 @@ const screens = new Set(['screening','ineligible','start','consult','phone','goa
 const terminal=()=>['submitted','screened_out','withdrawn'].includes(store?.session.status);
 let screen='screening', optionsReturn='start', initializing=false, ownerReady=false;
 let interval, toastTimer, transitionTimer, renderGeneration=0;
+let referenceOverlay=null, referenceReturnFocus=null, referenceBackgroundState=null;
 const SCREEN_CONTEXT_DELAY_MS=2000;
+const referenceScreens={
+ return:{src:'./assets/return-balance-zero.png',caption:'상담 후 돌아온 화면',alt:'보유 이용료가 0인 상담하기 화면 캡처'},
+ home:{src:'./assets/counsellor-home.png',caption:'상담사 목록 화면',alt:'서가비 상담사와 하단 메뉴가 보이는 목록 화면 캡처'},
+ initial:{src:'./assets/initial-credit-reference.png',caption:'처음 상담을 시작한 화면',alt:'보유 이용료 10,000과 상담 가능 시간이 표시된 상담하기 화면 캡처'},
+ payment:{src:'./assets/payment-minimum-reference.png',caption:'이용료 결제 화면',alt:'최소 30,000포인트와 부가세 별도 금액이 표시된 이용료 결제 화면 캡처'},
+};
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const paths = {
   close:'M5 5l14 14M19 5L5 19', home:'M3 10l9-8 9 8v11h-7v-7h-4v7H3z', heart:'M12 21S2 15 2 8a5 5 0 0 1 10-1 5 5 0 0 1 10 1c0 7-10 13-10 13z', user:'M4 22v-3a8 8 0 0 1 16 0v3M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10', coins:'M3 6a9 3 0 1 0 18 0 9 3 0 1 0-18 0M3 6v12a9 3 0 0 0 18 0V6M3 12a9 3 0 0 0 18 0', phone:'M5 2L2 5c0 8 9 17 17 17l3-3-6-5-3 3c-3-1-5-3-6-6l3-3z', search:'M21 21l-6-6M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16', star:'M12 2l3 7 7 1-5 5 1 7-6-4-6 4 1-7-5-5 7-1z', card:'M2 5h20v15H2zM2 10h20M5 15h4', mic:'M9 3a3 3 0 0 1 6 0v8a3 3 0 0 1-6 0zM5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8M2 2l20 20', video:'M2 6h13v13H2zM15 10l7-4v13l-7-5', speaker:'M3 10h4l6-6v16l-6-6H3zM17 7c5 3 5 7 0 10M20 3c8 6 8 12 0 18', bluetooth:'M8 5l10 13-6 4V2l6 4L8 19', shield:'M12 2l8 4v6c0 5-8 10-8 10S4 17 4 12V6z', record:'M9 12a4 4 0 1 0-8 0 4 4 0 1 0 8 0M23 12a4 4 0 1 0-8 0 4 4 0 1 0 8 0M5 16h14', arrow:'M15 3l-9 9 9 9'
@@ -39,10 +46,54 @@ function phone() {return `<section class="phone"><div class="phone-top"><span>8:
 function payment() {return `<div class="app-shell payment"><h1>이용료 결제</h1><section class="points"><p>보유포인트</p>${coin}<strong>0</strong></section><div class="payment-body"><h2>결제금액 선택 <small>(VAT별도)</small></h2><div class="amounts">${[30000,50000,100000,200000,300000,500000].map((n,i)=>btn('amount-'+n,'포인트 '+n.toLocaleString('ko-KR'),'amount-row',true,`<span class="radio ${i===0?'selected':''}" aria-hidden="true"></span><strong>포인트 ${n.toLocaleString('ko-KR')}</strong><small>${n.toLocaleString('ko-KR')}원</small>`)).join('')}</div><h2>결제방법 선택</h2><div class="methods">${btn('method-card','신용카드','method selected',true,icon('card')+'신용카드')}${btn('method-naver','네이버 페이','method',true,'<span class="naver" aria-hidden="true">N</span>네이버 페이')}${btn('method-kakao','카카오 페이','method',true,'<span class="kakao" aria-hidden="true">pay</span>카카오 페이')}${btn('method-account','가상계좌','method',true,icon('card')+'가상계좌')}</div><h2>결제금액</h2><div class="totals"><div><span>결제금액 (VAT별도)</span><strong>30,000 원</strong></div><div><span>총 결제금액</span><strong>33,000 원</strong></div></div></div><section class="purchase-guide"><h2>포인트 구매 안내</h2><p>· 포인트 구매/이용 내역은 마이메뉴 &gt; 상담내역, 결제내역에서 확인하실 수 있습니다.</p><p>· 정당한 이유 없이 결제/환불을 반복하시는 경우 이용이 제한될 수 있습니다.</p><p>· 이용하지 않은 포인트에 한 하여 결제일로부터 7일 이내에 청약철회 등 환불을 하실 수 있습니다.</p><p class="red">* 미성년자는 사주모아 운세상담을 이용하실 수 없습니다.</p></section><footer class="app-footer"><strong>Sajumoa</strong><p>넥스트벤처스 사업자정보</p><p>이용약관 &nbsp; 개인정보취급방침</p></footer><div class="payment-action">${btn('pay','결제','',true)}</div>${nav('coins',true)}</div>`;}
 function arrivalDialog(){return `<div class="arrival-backdrop"><section class="arrival-dialog" role="dialog" aria-modal="true" aria-labelledby="arrival-title" aria-describedby="arrival-description"><span class="arrival-label">사용자 테스트 안내</span><h2 id="arrival-title">여기까지가 과업입니다.</h2><p id="arrival-description">다음 질문으로 넘어갑니다.</p>${btn('to-questions','질문으로 가기','primary')}</section></div>`;}
 function isDetour(){return store.session.measurement.firstButton && store.session.measurement.firstButton!=='이용료 결제';}
+function visitedHome(){return (store.session.events||[]).some(event=>event.screen==='home'||(event.screen==='return'&&event.action==='close')||(event.action==='browser_navigation'&&event.to==='home'));}
+function questionReference(id){
+ const key=id==='q4'?'initial':['q5','q6'].includes(id)?'payment':id==='q2'&&visitedHome()?'home':'return',reference=referenceScreens[key];
+ return `<figure class="question-reference" data-question="${id}" data-reference="${key}"><img src="${reference.src}" alt="${esc(reference.alt)}" width="390" height="${key==='payment'?'844':'780'}" loading="lazy"><figcaption><span>${reference.caption}</span><button type="button" class="reference-open" data-action="reference-open" data-label="${id.slice(1)}번 질문 회상 화면 크게 보기" data-question="${id}" data-reference="${key}">크게 보기</button></figcaption></figure>`;
+}
+function textQuestion(id,question,answers,help=''){
+ return `<div class="answer-block"><label for="${id}">${question} <span class="required-label">필수</span></label>${questionReference(id)}${help?`<p class="answer-help" id="${id}-help">${help}</p>`:''}<textarea id="${id}" name="${id}" placeholder="답변을 적어 주세요" required maxlength="20000" aria-describedby="${id}-error${help?' '+id+'-help':''}">${esc(answers[id])}</textarea><p class="form-error" id="${id}-error"></p></div>`;
+}
+function ratingQuestion(id,question,labels,answers){
+ return `<fieldset class="answer-block rating-block"><legend id="${id}-label">${question} <span class="required-label">필수</span></legend>${questionReference(id)}<div class="rating-scale" role="radiogroup" data-rating-name="${id}" aria-labelledby="${id}-label" aria-describedby="${id}-error" aria-required="true">${labels.map((label,index)=>`<label class="rating-option"><input type="radio" id="${id}-${index+1}" name="${id}" value="${index+1}" required aria-describedby="${id}-error" ${String(answers[id])===String(index+1)?'checked':''}><span class="rating-number">${index+1}</span><span class="rating-label">${label}</span></label>`).join('')}</div><p class="form-error" id="${id}-error"></p></fieldset>`;
+}
 function questions() {
  const a=store.session.answers||{};
  const list=[['q1','1. 돌아온 화면에서 처음에 무엇을 누르셨어요? 무엇을 보고 누르셨어요?'],...(isDetour()?[['q2','2. 돌아가신 화면에서 무엇을 찾고 계셨어요?']]:[]),['q3','3. 돌아온 화면에서 확인하고 싶었던 게 있었어요?']];
- return study(`<p class="step">마지막 단계</p><h1>질문 (사실 회상부터)</h1><p class="muted">모든 질문에 답해 주세요. 떠오르는 내용이 없으면 ‘없어요’라고 적어도 됩니다.</p><form id="answers-form" novalidate>${list.map(([id,q])=>`<div class="answer-block"><label for="${id}">${q} <span class="required-label">필수</span></label><textarea id="${id}" name="${id}" placeholder="답변을 적어 주세요" required maxlength="20000" aria-describedby="${id}-error">${esc(a[id])}</textarea><p class="form-error" id="${id}-error"></p></div>`).join('')}<p class="muted">${previewMode?'미리보기에서는 버튼 선택과 답변이 저장·전송되지 않습니다.':'버튼 선택과 작성한 답변은 테스트 결과로 자동 저장됩니다.'}</p><button class="primary" type="submit" data-action="submit" data-label="제출">제출</button></form>`,'questions');
+ return study(`<p class="step">마지막 단계</p><h1>질문 (사실 회상부터)</h1><p class="muted">모든 질문에 답해 주세요. 서술형 질문에서 떠오르는 내용이 없으면 ‘없어요’라고 적어도 됩니다.</p><form id="answers-form" novalidate>${list.map(([id,q])=>textQuestion(id,q,a)).join('')}${ratingQuestion('q4','이번 체험에서 받은 10,000포인트의 가치를 어떻게 느끼셨나요?',['매우낮음','낮음','보통','높음','매우높음'],a)}${ratingQuestion('q5','최소 충전금액 30,000원(VAT 별도)은 어떻게 느껴지셨나요?',['매우저렴','저렴','보통','비쌈','매우비쌈'],a)}${textQuestion('q6','최소 충전금액은 추가 결제 여부를 결정하는 데 어떤 영향을 주었나요?',a,'영향이 없었다면 영향 없음이라고 적어도 됩니다.')}<p class="muted">${previewMode?'미리보기에서는 버튼 선택과 답변이 저장·전송되지 않습니다.':'버튼 선택과 작성한 답변은 테스트 결과로 자동 저장됩니다.'}</p><button class="primary" type="submit" data-action="submit" data-label="제출">제출</button></form>`,'questions');
+}
+function closeQuestionReference(restoreFocus=true){
+ if(!referenceOverlay)return;
+ const focusTarget=referenceReturnFocus;
+ referenceOverlay.remove();referenceOverlay=null;referenceReturnFocus=null;
+ if(referenceBackgroundState){
+  app.inert=referenceBackgroundState.inert;
+  if(referenceBackgroundState.ariaHidden===null)app.removeAttribute('aria-hidden');else app.setAttribute('aria-hidden',referenceBackgroundState.ariaHidden);
+  referenceBackgroundState=null;
+ }
+ document.body.classList.remove('reference-open');
+ if(restoreFocus&&screen==='questions'&&focusTarget?.isConnected)focusTarget.focus({preventScroll:true});
+}
+function requestReferenceClose(source){
+ if(guard.isOwner&&ownerReady&&screen==='questions'&&remote?.status.state!=='conflict'){
+  const label=source==='escape'?'확대 화면 닫기 (Esc)':source==='backdrop'?'확대 화면 닫기 (바깥 영역)':'확대 화면 닫기';
+  store.log('questions',label,{action:'reference-close'});showStorageError();
+ }
+ closeQuestionReference();
+}
+function openQuestionReference(key,trigger){
+ if(screen!=='questions'||referenceOverlay)return;
+ const reference=referenceScreens[key]||referenceScreens.return;
+ referenceReturnFocus=trigger;
+ referenceBackgroundState={inert:app.inert,ariaHidden:app.getAttribute('aria-hidden')};
+ const overlay=document.createElement('div');overlay.className='reference-backdrop';
+ overlay.innerHTML=`<section class="reference-dialog" role="dialog" aria-modal="true" aria-labelledby="reference-title"><header class="reference-dialog-head"><h2 id="reference-title">${reference.caption}</h2><button type="button" class="reference-close" data-action="reference-close" aria-label="확대 화면 닫기">${icon('close')}</button></header><div class="reference-image-scroll" tabindex="0" role="region" aria-label="확대 이미지, 방향키로 스크롤할 수 있습니다"><img src="${reference.src}" alt="${esc(reference.alt)}" width="390" height="${key==='payment'?'844':'780'}"></div></section>`;
+ overlay.addEventListener('click',event=>{
+  if(event.target===overlay)requestReferenceClose('backdrop');
+  else if(event.target.closest('[data-action="reference-close"]'))requestReferenceClose('button');
+ });
+ referenceOverlay=overlay;document.body.append(overlay);app.inert=true;app.setAttribute('aria-hidden','true');
+ document.body.classList.add('reference-open');overlay.querySelector('[data-action="reference-close"]').focus({preventScroll:true});
 }
 function cancelScreenTimers(){
  clearInterval(interval);interval=null;clearTimeout(transitionTimer);transitionTimer=null;renderGeneration+=1;
@@ -63,6 +114,7 @@ function openArrivalDialog(){
  app.querySelector('.arrival-dialog [data-action="to-questions"]').focus({preventScroll:true});
 }
 function render(){
+ closeQuestionReference(false);
  cancelScreenTimers();
  switch(screen){
  case 'resume':app.innerHTML=study(`<p class="step">${previewMode?'이 창의 미리보기':'이 기기의 참여 기록'}</p><h1>${terminal()?(previewMode?'미리보기를 마쳤어요.':'이전에 참여한 기록이 있어요.'):'이어서 진행할까요?'}</h1><p class="lead">${previewMode?'입력 내용은 이 창 안에만 있습니다. 실제 참가자 기록에는 반영되지 않습니다.':terminal()?'같은 분이라면 다시 참여하지 않아도 됩니다.':'이전에 작성한 답변과 진행 화면이 저장되어 있습니다.'}</p>${previewMode?'':`<p class="session-code">참여 번호 ${esc(store.session.id)}</p>`}${btn('resume-existing',terminal()?(previewMode?'미리보기 확인':'참여 기록 확인'):'이어서 하기','primary')}${btn('new-person',previewMode?'새 미리보기 시작':'다른 참가자로 시작','secondary spaced')}`);break;
@@ -71,7 +123,7 @@ function render(){
  case 'paused':app.innerHTML=study(`<p class="step">잠시 중단</p><h1>${previewMode?'미리보기를 잠시 멈췄어요.':'진행 내용을 보관했어요.'}</h1><p class="lead">${previewMode?'이 창에서 이어서 진행할 수 있습니다. 새로고침하거나 창을 닫으면 처음부터 시작합니다.':'이 기기에서 테스트 링크를 다시 열면 이어서 진행할 수 있습니다.'}</p><p class="muted save-state" id="save-status" role="status" aria-live="polite"></p><p class="muted" id="save-detail"></p>${btn('remote-retry','저장 다시 시도','secondary spaced')}${btn('resume-existing','이어서 하기','primary')}${btn('new-person','다른 참가자로 시작','secondary spaced')}`);break;
  case 'withdrawn':app.innerHTML=study(`<p class="step">참여 종료</p><h1>${previewMode?'미리보기를 종료했어요.':'참여를 종료했어요.'}</h1><p class="lead">${previewMode?'실제 참가자 기록에는 반영되지 않습니다.':'지금까지 남긴 기록은 보관됩니다. 참여해 주셔서 감사합니다.'}</p><p class="muted save-state" id="save-status" role="status" aria-live="polite"></p><p class="muted" id="save-detail"></p>${btn('remote-retry','저장 다시 시도','secondary spaced')}${btn('new-person','다른 참가자로 시작','secondary spaced')}`);break;
  case 'screening':app.innerHTML=study(`<p class="step">참여 전 확인</p><h1>반갑습니다.</h1><p class="muted" style="margin-bottom:32px">시작하기 전에 두 가지를 확인할게요.</p><fieldset class="question"><legend><span class="q-number">Q1</span>운세 상담(사주, 타로 등)에<br>관심이 있나요?</legend>${['관심 있어요','별로 관심 없어요'].map((l,i)=>btn('interest-'+i,l,'choice',false,`<span class="dot" aria-hidden="true"></span>${l}`)).join('')}</fieldset><fieldset class="question"><legend><span class="q-number">Q2</span>사주모아를 써본 적 있나요?</legend>${['써본 적 있어요','써본 적 없어요'].map((l,i)=>btn('used-'+i,l,'choice',false,`<span class="dot" aria-hidden="true"></span>${l}`)).join('')}</fieldset><p id="screening-error" class="form-error" role="status"></p>`); updateChoices();break;
- case 'ineligible':app.innerHTML=study('<div class="complete-icon">✓</div><h1>참여 조건을 확인했어요.</h1><p class="lead">이 테스트는 사주모아를 써본 적이 없는 분을 대상으로 합니다.</p><p class="muted" style="margin-top:24px">관심을 가져 주셔서 감사합니다.</p>');break;
+ case 'ineligible':app.innerHTML=study(`<h1>이전 참여 기록입니다.</h1><p class="lead">이전 기준으로 종료된 기록은 보관됩니다. 이제 사주모아 이용 경험과 관계없이 새 테스트를 시작할 수 있습니다.</p>${btn('legacy-new-session','새 테스트 시작','primary')}`);break;
  case 'start':app.innerHTML=study(`<p class="step">0. 시작</p><h1>상담을 시작해 볼게요.</h1><p class="lead">사주모아 상담을 직접 해볼 거예요.</p><p class="task">오늘 고민되는 내용을<br>서가비 선생님과 상담해보세요.</p><p class="muted">${previewMode?'미리보기에서는 버튼 선택과 답변이 저장·전송되지 않습니다.':'버튼 선택과 작성한 답변은 테스트 결과로 자동 저장됩니다. 이름이나 연락처는 적지 않아도 돼요.'}</p>${btn('start','시작하기','primary')}`);break;
  case 'consult':app.innerHTML=modal(false);break;
  case 'phone':app.innerHTML=phone();startTimer();break;
@@ -100,6 +152,7 @@ function updateRemoteStatus(){
  showStorageError();
  if(!remote||!ownerReady)return;
  if(remote.status.state==='conflict'){
+  closeQuestionReference(false);
   cancelScreenTimers();screen='conflict';document.body.classList.remove('has-test-controls','arrival-open');
   app.innerHTML=study('<p class="step">기록 보호</p><h1>다른 창의 기록을 확인해 주세요.</h1><p class="lead">다른 곳에서 이 참여 기록이 갱신되어, 오래된 내용으로 덮어쓰지 않도록 이 창의 작성을 멈췄습니다.</p><p class="muted spaced">다른 테스트 창에서 최근 진행 내용을 확인해 주세요. 중복 제출하지 않아도 됩니다.</p>');return;
  }
@@ -136,6 +189,8 @@ app.addEventListener('click',event=>{
  if(['return','home'].includes(screen)&&!store.session.measurement.arrived&&action!=='session-options')store.firstAction(label);
  showStorageError();
  if(b.getAttribute('aria-disabled')==='true')return;
+ if(action==='reference-open'&&screen==='questions'){openQuestionReference(b.dataset.reference,b);return;}
+ if(action==='legacy-new-session'){remoteUnsubscribe?.();remote.dispose();store.newSession();connectRemote();navigate('screening',{replace:true});return;}
  if(action==='resume-existing'){
   if(store.session.status==='paused')store.resume();
   navigate(screens.has(store.session.screen)?store.session.screen:'start',{replace:true});return;
@@ -154,7 +209,7 @@ app.addEventListener('click',event=>{
  if(action.startsWith('used-')){
   if(!store.session.screening.interest){document.querySelector('#screening-error').textContent='Q1에서 관심 여부를 먼저 선택해 주세요.';return;}
   store.session.screening.used=label;store.save();
-  if(action==='used-0'){store.exclude('기존 사주모아 이용자');store.session.status='screened_out';navigate('ineligible');}else navigate('start');return;
+  navigate('start');return;
  }
  if(action==='start'){navigate('consult');return;}
  if(action==='consult-now'&&screen==='consult'){store.session.callRemaining=248;store.save();navigate('phone');return;}
@@ -178,16 +233,42 @@ app.addEventListener('click',event=>{
  if(action==='remote-retry'){void remote.flush();return;}
 });
 app.addEventListener('input',event=>{if(guard.isOwner&&ownerReady&&event.target.matches('textarea')&&remote.status.state!=='conflict'){store.session.answers[event.target.name]=event.target.value;store.save();if(event.target.value.trim()){event.target.removeAttribute('aria-invalid');const hint=document.querySelector('#'+event.target.id+'-error');if(hint)hint.textContent='';}showStorageError();}});
+app.addEventListener('change',event=>{
+ const input=event.target;
+ if(!guard.isOwner||!ownerReady||screen!=='questions'||remote.status.state==='conflict'||!input.matches('input[type="radio"][name="q4"],input[type="radio"][name="q5"]'))return;
+ store.session.answers[input.name]=input.value;
+ store.log('questions',`${input.name.slice(1)}번 질문 ${input.value}점 선택`,{action:'answer-select'});
+ const group=input.closest('[data-rating-name]');group.removeAttribute('aria-invalid');group.querySelectorAll('input').forEach(radio=>radio.removeAttribute('aria-invalid'));
+ document.querySelector('#'+input.name+'-error').textContent='';showStorageError();
+});
 app.addEventListener('submit',event=>{
  if(event.target.id!=='answers-form')return;event.preventDefault();
  if(!guard.isOwner||!ownerReady||remote.status.state==='conflict')return;
  const answers=Object.fromEntries(new FormData(event.target));let first;
- for(const textarea of event.target.querySelectorAll('textarea')){const empty=!textarea.value.trim();textarea.setAttribute('aria-invalid',String(empty));document.querySelector('#'+textarea.id+'-error').textContent=empty?'답변을 입력해 주세요. 떠오르는 내용이 없으면 ‘없어요’라고 적어 주세요.':'';if(empty&&!first)first=textarea;}
+ for(const field of event.target.querySelectorAll('textarea,[data-rating-name]')){
+  if(field.matches('textarea')){
+   const empty=!field.value.trim();field.setAttribute('aria-invalid',String(empty));
+   document.querySelector('#'+field.id+'-error').textContent=empty?(field.id==='q6'?'답변을 입력해 주세요. 영향이 없었다면 영향 없음이라고 적어도 됩니다.':'답변을 입력해 주세요. 떠오르는 내용이 없으면 ‘없어요’라고 적어 주세요.'):'';
+   if(empty&&!first)first=field;
+  }else{
+   const checked=field.querySelector('input:checked'),empty=!checked||!['1','2','3','4','5'].includes(checked.value);
+   field.setAttribute('aria-invalid',String(empty));field.querySelectorAll('input').forEach(input=>input.setAttribute('aria-invalid',String(empty)));
+   document.querySelector('#'+field.dataset.ratingName+'-error').textContent=empty?'1점부터 5점 중 하나를 선택해 주세요.':'';
+   if(empty&&!first)first=field.querySelector('input');
+  }
+ }
  if(first){store.log(screen,'제출 시도: 필수 답변 누락',{action:'submit_invalid'});first.focus();return;}
- store.log(screen,'제출',{action:'submit'});store.submit(answers);navigate('thanks');void remote.flush();
+ store.session.questionnaireVersion=2;store.log(screen,'제출',{action:'submit'});store.submit(answers);navigate('thanks');void remote.flush();
 });
 document.addEventListener('keydown',event=>{
  if(!guard.isOwner||!ownerReady)return;
+ if(referenceOverlay){
+  if(event.key==='Escape'){event.preventDefault();requestReferenceClose('escape');return;}
+  if(event.key==='Tab'){
+   const items=[referenceOverlay.querySelector('[data-action="reference-close"]'),referenceOverlay.querySelector('.reference-image-scroll')];
+   const current=items.indexOf(document.activeElement);event.preventDefault();items[(current+(event.shiftKey?-1:1)+items.length)%items.length]?.focus();return;
+  }
+ }
  if(event.key==='Tab'&&screen==='payment'&&document.querySelector('.arrival-dialog')){event.preventDefault();document.querySelector('.arrival-dialog [data-action="to-questions"]')?.focus();return;}
  if(event.key==='Tab'&&['consult','return'].includes(screen)){
   const items=[...document.querySelectorAll('.consult-modal button,.test-controls-bar button,.preview-banner button')];const first=items[0],last=items.at(-1);
@@ -207,7 +288,7 @@ function beginExtraTask(){
  store.exclude('조건부 B: 첫 과업에서 충전 미경유, 참가자가 진행 어려움을 선택');
  store.session.measurement.phase='B';store.save();navigate('extra-task');
 }
-function renderBlocked(message){cancelScreenTimers();document.body.classList.remove('has-test-controls','arrival-open');ownerReady=false;screen='blocked';warning.hidden=true;app.innerHTML=study(`<p class="step">여러 창 동시 진행 방지</p><h1>한 창에서만 진행해 주세요.</h1><p class="lead">${esc(message||'다른 창에서 테스트가 진행 중입니다.')}</p><p class="muted spaced">다른 테스트 창을 닫은 뒤 아래 버튼을 누르면 저장된 기록을 이어서 불러옵니다.</p>${btn('tab-retry','다른 창을 닫았어요. 이어서 하기','primary')}`);}
+function renderBlocked(message){closeQuestionReference(false);cancelScreenTimers();document.body.classList.remove('has-test-controls','arrival-open');ownerReady=false;screen='blocked';warning.hidden=true;app.innerHTML=study(`<p class="step">여러 창 동시 진행 방지</p><h1>한 창에서만 진행해 주세요.</h1><p class="lead">${esc(message||'다른 창에서 테스트가 진행 중입니다.')}</p><p class="muted spaced">다른 테스트 창을 닫은 뒤 아래 버튼을 누르면 저장된 기록을 이어서 불러옵니다.</p>${btn('tab-retry','다른 창을 닫았어요. 이어서 하기','primary')}`);}
 function connectRemote(){remote=preview?preview.createRemote():initRemoteSync(store,{canCapture:()=>guard.isOwner&&ownerReady});remoteUnsubscribe=remote.subscribe(updateRemoteStatus);}
 async function initializeOwner(){
  if(initializing)return;initializing=true;
