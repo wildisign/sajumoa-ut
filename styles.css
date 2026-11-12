@@ -7,3 +7,16 @@
 .spaced{margin-top:14px}.danger{color:#a14135;border-color:#d9b5af}.required-label{font-size:11px;color:#2b7187;margin-left:5px}textarea[aria-invalid=true]{border-color:#bc4a3c}.save-state{margin-top:24px}.has-test-controls{padding-top:64px}.has-test-controls .modal-backdrop{top:60px}.has-test-controls .consult-modal{max-height:calc(100dvh - 100px)}.test-controls-bar{position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:40;width:min(100%,560px);min-height:56px;padding:6px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px;background:#f3f8fa;border-bottom:1px solid #dbe6ea;color:#60727c;font-size:11px}.test-controls-bar>div{display:flex;gap:6px}.test-controls-bar button{min-height:44px;font-size:12px;padding:9px 11px;border:1px solid #d0dde3;border-radius:8px;background:white;color:#426271}.test-controls-bar .test-help{color:#2b7187}.questions .form-error:empty{display:none}
 
 .preview-mode{padding-top:76px}.preview-mode.has-test-controls{padding-top:132px}.preview-banner{position:fixed;inset:0 auto auto 50%;transform:translateX(-50%);width:min(100%,560px);height:76px;z-index:60;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;background:#fff2d6;border-bottom:1px solid #ddbc7b;color:#66451c}.preview-banner>div{min-width:0}.preview-banner strong{display:block;font-size:13px;line-height:1.5}.preview-banner small{display:block;font-size:10px;line-height:1.6;margin-top:3px}.preview-banner button{flex-shrink:0;min-height:44px;padding:10px 12px;border:1px solid #c6a569;border-radius:8px;background:#fffaf0;color:#66451c;font-size:12px;font-weight:700}.preview-mode .test-controls-bar{top:76px}.preview-mode .modal-backdrop{top:76px}.preview-mode.has-test-controls .modal-backdrop{top:136px}.preview-mode .consult-modal{max-height:calc(100dvh - 116px)}.preview-mode.has-test-controls .consult-modal{max-height:calc(100dvh - 176px)}
+
+
+/* Stop the task visibly as soon as the payment screen is reached. */
+.arrival-open{overflow:hidden}
+.arrival-backdrop{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;overflow-y:auto;padding:24px 20px;background:#14262f99}
+.arrival-dialog{width:min(100%,400px);max-height:calc(100dvh - 48px);overflow-y:auto;flex-shrink:0;background:#fff;border:1px solid #dce8ec;border-radius:18px;padding:28px 24px;box-shadow:0 18px 60px #132d3b2b}
+.arrival-dialog h2{font-size:24px;line-height:1.45;letter-spacing:-.8px;margin:0 0 12px}
+.arrival-dialog p{font-size:16px;color:#64737b;line-height:1.7}
+.arrival-dialog .primary{margin-top:24px}
+.preview-mode .arrival-backdrop{top:76px}
+.preview-mode .arrival-dialog{max-height:calc(100dvh - 124px)}
+.consult-postpaid[aria-disabled=true]{background:#f2f4f5;color:#a0a7ab;border-color:#d9dfe2}
+@media(max-width:359px){.arrival-dialog{padding:24px 20px}.arrival-dialog h2{font-size:22px}}
