@@ -124,8 +124,7 @@ function menu(trigger){
  openDialog(`<h2>테스트 진행</h2>${contextActions.join('')}
   ${btn('dialog-close','화면으로 돌아가기','secondary spaced')}
   ${btn('pause-participation','참여 중단하기','secondary spaced')}
-  <p class="participation-note">참여를 중단해도 같은 링크를 통해 이어서 진행할 수 있습니다.</p>
-  ${previewMode?'<p class="participation-note preview-resume-note">미리보기에서는 이 창에서만 이어서 진행할 수 있습니다.</p>':''}`,trigger);
+  <p class="participation-note">참여를 중단해도 같은 링크를 통해 이어서 진행할 수 있습니다.</p>`,trigger);
 }
 function next(){const q=question();if(q){const m=validateAnswer(q,store.session.answers);if(m){error(m);return;}log('question-complete',q.id+' 답변 완료');if(q.id==='P2'){go('reentry');return;}const i=questions.indexOf(q);go(i===questions.length-1?'review':'q-'+questions[i+1].id);return;}const mapping={welcome:'screening',screening:'start',start:'consult',goal:'return',reentry:'reentry-home'};if(screen==='screening'&&(!store.session.screening.interest||!store.session.screening.used)){error('두 질문에 모두 답해 주세요.');return;}if(mapping[screen])go(mapping[screen]);}
 document.addEventListener('click',e=>{const b=e.target.closest('button[data-action]');if(!b||!active()||b.disabled)return;const a=b.dataset.action;log(a,b.dataset.label);

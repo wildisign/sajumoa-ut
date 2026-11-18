@@ -81,13 +81,11 @@
   overflow-y: auto;
 }
 .participation-note {
-  margin: 4px 0 0;
-  color: #5d6b71;
-  font-size: 13px;
+  margin: 2px 0 0;
+  color: #66747b;
+  font-size: 12px;
+  font-weight: 400;
   line-height: 1.6;
   word-break: keep-all;
   overflow-wrap: anywhere;
-}
-.preview-resume-note {
-  margin-top: 0;
 }
