@@ -144,7 +144,7 @@ function schedulePaymentPrompt(){
  timer=setTimeout(()=>{
   if(!active()||screen!=='payment'||document.hidden||dialog)return;
   store.session.measurement.paymentPromptSeen=true;save();
-  openDialog(`<h2>다음 질문으로 넘어갈까요?</h2>${btn('task-done','다음 질문으로','primary')}${btn('dialog-close','계속 살펴보기','secondary')}`,app.querySelector('.decision-done'));
+  openDialog(`<h2>이번 과업은 충전 화면까지예요</h2><p>결제할 필요는 없어요. 다음 질문에서 방금 본 화면에 대한 생각을 들려주세요.</p>${btn('task-done','다음 질문으로','primary')}${btn('dialog-close','계속 살펴보기','secondary')}`,app.querySelector('.decision-done'));
  },paymentPromptDelay);
 }
 document.addEventListener('visibilitychange',()=>{if(screen==='payment')schedulePaymentPrompt();});
