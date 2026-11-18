@@ -127,7 +127,27 @@ function menu(trigger){
   <p class="participation-note">참여를 중단해도 같은 링크를 통해 이어서 진행할 수 있습니다.</p>`,trigger);
 }
 function next(){const q=question();if(q){const m=validateAnswer(q,store.session.answers);if(m){error(m);return;}log('question-complete',q.id+' 답변 완료');if(q.id==='P2'){go('reentry');return;}const i=questions.indexOf(q);go(i===questions.length-1?'review':'q-'+questions[i+1].id);return;}const mapping={welcome:'screening',screening:'start',start:'consult',goal:'return',reentry:'reentry-home'};if(screen==='screening'&&(!store.session.screening.interest||!store.session.screening.used)){error('두 질문에 모두 답해 주세요.');return;}if(mapping[screen])go(mapping[screen]);}
-document.addEventListener('click',e=>{const b=e.target.closest('button[data-action]');if(!b||!active()||b.disabled)return;const a=b.dataset.action;log(a,b.dataset.label);
+function taskPoint(event){
+ const target=event.target;
+ if(!event.detail||dialog||!taskScreens.includes(screen)||target===app||!app.contains(target)||target.closest('.test-controls-bar'))return null;
+ const rect=target.getBoundingClientRect();
+ if(!rect.width||!rect.height)return null;
+ const path=[];
+ for(let node=target;node!==app;node=node.parentElement)path.unshift(Array.prototype.indexOf.call(node.parentElement.children,node));
+ const fraction=n=>Math.round(Math.max(0,Math.min(1,n))*10000)/10000;
+ return {version:1,view:screen==='reentry-home'&&!app.querySelector('.reconnect-card')?'reentry-home-dismissed':screen,path:path.join('.'),u:fraction((event.clientX-rect.left)/rect.width),v:fraction((event.clientY-rect.top)/rect.height)};
+}
+document.addEventListener('click',e=>{
+ if(!active())return;
+ const b=e.target.closest('button[data-action]');
+ const point=taskPoint(e);
+ if(!b||b.disabled){
+  if(point)store.log(screen,(e.target.closest('[aria-label]')?.getAttribute('aria-label')||e.target.textContent?.trim().slice(0,45)||'화면 여백'),{action:'surface-tap',inert:true,point});
+  return;
+ }
+ const a=b.dataset.action;
+ if(point)store.log(screen,b.dataset.label||a,{action:a,inert:b.getAttribute('aria-disabled')==='true',point});
+ else log(a,b.dataset.label);
  if(['return','home'].includes(screen)&&b.closest('.app-shell,.consult-modal'))store.firstAction(b.dataset.label);
  if(b.getAttribute('aria-disabled')==='true')return;
  if(a==='next')next();else if(a==='menu')menu(b);else if(a==='dialog-close')closeDialog();
