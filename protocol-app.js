@@ -3,7 +3,7 @@ import {initRemoteSync} from './sync.js';
 import {createTabGuard} from './tab-guard.js';
 import {isPreviewMode,createPreviewRuntime} from './preview-mode.js';
 import {esc,btn,icon,home,modal,phone,payment} from './views.js';
-import {VERSION,questions,factors,validateAnswer} from './protocol.js';
+import {VERSION,questions,factors,validateAnswer} from './protocol.js?v=20261118-feedback';
 const app=document.querySelector('#app'),warning=document.querySelector('#storage-warning');
 const previewMode=isPreviewMode(location.search),preview=previewMode?createPreviewRuntime():null,guard=preview?.guard||createTabGuard();
 const query=new URLSearchParams(location.search),newRequested=query.has('new');
@@ -43,6 +43,9 @@ function options(q){const a=store.session.answers;
  if(q.type==='factors')return `<p class="answer-help">최대 2개까지 선택해 주세요. ‘아직 판단하기 어려워요’는 단독으로 선택해 주세요.</p>${factors.map(([id,l])=>`<label class="ut-option"><input type="checkbox" data-factor="${id}" ${a.F1?.includes(id)?'checked':''}>${l}</label>`).join('')}<div ${a.F1?.includes('other')?'':'hidden'} id="other-field"><label for="other">기타 내용을 적어 주세요.</label><textarea id="other" maxlength="20000" data-answer="F1Other">${esc(a.F1Other||'')}</textarea></div>`;
  return `<fieldset class="ut-options"><legend class="screenreader-only">${esc(q.prompt)}</legend>${q.options.map(l=>`<label class="ut-option"><input type="radio" name="${q.id}" data-answer="${q.id}" value="${esc(l)}" ${a[q.id]===l?'checked':''}>${esc(l)}</label>`).join('')}</fieldset>`;
 }
+function finalFeedback(q){
+ return study(`${title(q.number+' · 선택 질문',esc(q.title))}<label class="question-prompt" for="feedback">${esc(q.prompt)}</label><textarea id="feedback" data-answer="feedback" maxlength="20000">${esc(store.session.answers.feedback||'')}</textarea><p class="safety">의견이 없으면 바로 제출해 주세요.</p><p class="form-error" id="question-error" role="alert"></p>${action('답변 제출하기','submit')}`,'question-page');
+}
 function questionnaire(q){return study(`${q.reference?reference(q.reference):''}<section class="question-content">${title(q.number+' · 질문',esc(q.title))}<p class="question-prompt">${esc(q.prompt)}</p>${options(q)}${q.reason?`<label class="reason-label" for="reason">${esc(q.reason)} <span>선택</span></label><textarea id="reason" maxlength="20000" data-answer="${q.id}Reason">${esc(store.session.answers[q.id+'Reason']||'')}</textarea>`:''}<p class="form-error" id="question-error" role="alert"></p></section>${action(q.id==='P2'?'다음 상황으로':'다음')}`,'question-page');}
 function reentryHome(){return home().replace('<div class="filter-bar">',`<article class="reconnect-card">${btn('dismiss-card','상담 카드 닫기','card-close',false,icon('close'))}<div class="reconnect-profile"><div class="portrait"></div><div><p>지난 상담 · 5분</p><h2>서가비 선생님</h2></div></div><p>포인트가 부족해 상담이 종료됐어요.</p><div class="reconnect-bottom"><span>1,200P / 30초</span>${btn('reconnect','이어서 상담하기','primary')}</div></article><div class="filter-bar">`);}
 function reentryModal(){return `${reentryHome()}<div class="modal-backdrop"><section class="consult-modal tobe" role="dialog" aria-modal="true" aria-labelledby="consult-title"><h1 class="modal-title" id="consult-title">상담하기</h1>${btn('close','닫기','modal-close',false,icon('close'))}<div class="consult-profile"><div class="portrait"></div><strong>서가비 선생님</strong></div><div class="balance-row"><div class="balance-copy">보유 포인트<strong>0P</strong></div>${btn('tobe-charge','포인트 충전','pay-entry')}</div><div class="modal-divider"></div><div class="consult-body"><h2>전화 상담</h2><div class="rate-box"><span><strong>1,200P</strong> / 30초</span><small>약 0분 상담 가능</small></div>${btn('tobe-call','전화 상담하기','consult-now')}<div class="postpaid-secondary"><strong>후불 전화 상담</strong><span>1,600원 / 30초</span><p>안내에 따라 상담사 고유번호 223번을 입력해 주세요.</p>${btn('postpaid','후불 전화 상담','consult-postpaid',true)}</div></div></section></div>`;}
@@ -51,7 +54,7 @@ function progressMenuButton(className){
 }
 function controls(){return `<nav class="test-controls-bar" aria-label="테스트 진행"><span>사용자 테스트</span>${progressMenuButton('session-tools')}</nav>`;}
 function render(){closeDialog(false);clearTimeout(timer);referenceSizer.disconnect();document.body.classList.toggle('has-test-controls',taskScreens.includes(screen));
- const q=question();if(q)app.innerHTML=questionnaire(q);else switch(screen){
+ const q=question();if(q)app.innerHTML=q.id==='feedback'?finalFeedback(q):questionnaire(q);else switch(screen){
  case 'welcome':app.innerHTML=study(`${title('01 · 안내','참여 안내')}<p>사주모아에서 상담이 끝난 뒤의 화면을 살펴보는 테스트입니다.</p><div class="intro-section"><h2>실제 전화·결제는 진행되지 않아요</h2><p>화면의 버튼을 눌러도 실제로 전화가 연결되거나 결제되지 않습니다.</p></div><div class="intro-section"><h2>평소처럼 답해 주세요</h2><p>정답은 없습니다. 평소라면 어떻게 할지 답해 주세요. 모르는 내용은 모른다고 답하셔도 됩니다.</p></div><div class="intro-section"><h2>${previewMode?'미리보기 답변은 저장되지 않아요':'답변은 익명으로 저장돼요'}</h2><p>${previewMode?'입력 내용은 이 창에서만 유지되며 전송되지 않습니다.':'선택과 작성한 답변은 익명 참여번호와 함께 저장됩니다.'}</p></div>${previewMode?'':'<p class="safety">창을 닫아도 같은 기기와 브라우저에서 이어서 진행할 수 있습니다.</p>'}${action('안내를 확인했어요')}`);break;
  case 'screening':app.innerHTML=study(`${title('02 · 질문','시작 전 질문')}${[['interest','운세 상담에 관심이 있나요?',['관심 있어요','별로 관심 없어요']],['used','사주모아를 써본 적이 있나요?',['써본 적 있어요','써본 적 없어요']]].map(([key,prompt,opts])=>`<fieldset class="screening-group"><legend>${prompt}</legend>${opts.map(l=>`<label class="ut-option"><input type="radio" name="${key}" data-screening="${key}" value="${l}" ${store.session.screening[key]===l?'checked':''}>${l}</label>`).join('')}</fieldset>`).join('')}<p id="question-error" class="form-error" role="alert"></p>${action()}`);break;
  case 'start':app.innerHTML=scenario('03-1 · 상담 체험','서가비 선생님과<br>상담하려고 합니다','사주모아에 가입해 혜택으로 받은<br>10,000포인트를 보유하고 있습니다.','다음 화면에서 서가비 선생님과 상담을 시작해 주세요.','시작하기');break;
@@ -64,7 +67,7 @@ function render(){closeDialog(false);clearTimeout(timer);referenceSizer.disconne
  case 'reentry':app.innerHTML=scenario('08-1 · 새로운 상황','잠시 뒤, 앱에<br>다시 들어왔습니다','앱을 잠시 나갔다가 다시 들어왔습니다.<br>이전에 상담한 서가비 선생님에게 더 물어보고 싶은 내용이 생겼습니다.','서가비 선생님과 다시 상담하려면 어떻게 할지 화면에서 진행해 주세요.','계속 진행하기');break;
  case 'reentry-home':app.innerHTML=reentryHome();break;
  case 'reentry-modal':app.innerHTML=reentryModal();break;
- case 'review':app.innerHTML=study(`${title('11-1 · 최종 제출','테스트를 마쳤습니다')}<p>선택한 내용과 작성한 답변을 제출해 주세요.</p><p id="question-error" class="form-error" role="alert"></p>${action('제출','submit')}`);break;
+ case 'review':app.innerHTML=finalFeedback(questions.find(item=>item.id==='feedback'));break;
  case 'thanks':app.innerHTML=study(`<h1 id="completion-title" aria-live="polite">답변을 저장하고 있습니다.</h1><p id="save-status" role="status" aria-live="polite"></p><p id="save-detail" class="muted"></p>${btn('retry','저장 다시 시도','secondary')}`,'thanks-page');break;
  case 'resume':app.innerHTML=study(`${title('진행 기록','이어서 진행할까요?')}<p>이 기기에 이전 진행 화면과 답변이 저장되어 있습니다.</p>${action('이어서 하기','resume')}${btn('new-person','새 참여 시작','secondary spaced')}`);break;
  case 'paused':app.innerHTML=study(`<h1>참여를 중단했습니다.</h1><p>${previewMode?'이 창에서 이어서 진행할 수 있습니다.':'같은 기기와 브라우저에서 테스트 링크를 다시 열면 이어서 진행할 수 있습니다.'}</p>${action('이어서 하기','resume')}`);break;

@@ -11,11 +11,13 @@ export const questions=[
  {id:'R1',number:'09-1',title:'선택 전 예상한 일',prompt:'방금 선택한 항목을 누르기 전, 어떤 일이 일어날 것으로 예상했나요?',type:'text',unknown:'기억나지 않아요'},
  {id:'R2',number:'09-2',title:'재상담에 필요한 것',prompt:'같은 상담사와 다시 상담하려면 무엇이 필요하다고 이해했나요?',type:'text',unknown:'잘 모르겠어요'},
  {id:'R3',number:'09-3',title:'재상담 방법 찾기',prompt:'이전에 상담한 상담사와 다시 상담할 방법을 찾기 쉬웠나요?',options:['1 전혀 쉽지 않음','2 별로 쉽지 않음','3 보통','4 대체로 쉬움','5 매우 쉬움'],reason:'쉽거나 어려웠던 부분이 있다면 적어 주세요.'},
- {id:'C1',number:'10',title:'금액 표시 비교',prompt:'충전되는 포인트와 실제 결제금액을 구분하기에는 어느 화면이 더 명확한가요?',reference:'compare',options:['화면 A','화면 B','차이 없음','둘 다 불명확'],reason:'선택한 화면이 더 명확하다고 생각한 이유를 적어 주세요.'}
+ {id:'C1',number:'10',title:'금액 표시 비교',prompt:'충전되는 포인트와 실제 결제금액을 구분하기에는 어느 화면이 더 명확한가요?',reference:'compare',options:['화면 A','화면 B','차이 없음','둘 다 불명확'],reason:'선택한 화면이 더 명확하다고 생각한 이유를 적어 주세요.'},
+ {id:'feedback',number:'11',title:'테스트에 대한 추가 의견',prompt:'이번 테스트와 관련해 더 하고 싶은 말이 있나요?',type:'text',optional:true}
 ];
 export const answerKeys=questions.flatMap(q=>[q.id,...(q.reason?[q.id+'Reason']:[])]).concat(['F1Other']);
 export function validateAnswer(q,answers){
  const value=answers[q.id];
+ if(q.optional && (value==null || typeof value==='string'))return '';
  if(q.type==='factors'){
   if(!Array.isArray(value)||!value.length||value.length>2||new Set(value).size!==value.length||value.some(v=>!factors.some(([id])=>id===v))||(value.includes('undecided')&&value.length!==1))return '중요하게 고려할 요소를 1~2가지 선택해 주세요.';
   if(value.includes('other')&&!answers.F1Other?.trim())return '기타 내용을 입력해 주세요.';
