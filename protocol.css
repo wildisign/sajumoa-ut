@@ -136,3 +136,7 @@ body:has(#app > .modal-backdrop) {
   overflow-y: auto;
   overscroll-behavior-y: contain;
 }
+
+.progress-menu-heading { display:flex; align-items:center; justify-content:space-between; }
+.progress-menu-heading h2 { margin:0; }
+.progress-menu-close { display:grid; place-items:center; width:44px; height:44px; border:0; background:transparent; color:inherit; font:normal 24px/1 sans-serif; cursor:pointer; }

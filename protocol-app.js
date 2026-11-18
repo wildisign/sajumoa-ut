@@ -137,7 +137,7 @@ function status(){
  document.querySelector('#save-detail').textContent=previewMode?'미리보기 답변은 저장·전송되지 않습니다.':complete?'':failed?'인터넷 연결을 확인하고 다시 시도해 주세요.':'저장 완료까지 이 창을 유지해 주세요.';
  document.querySelector('[data-action="retry"]').hidden=!failed;
 }
-const paymentPromptDelay=12000;
+const paymentPromptDelay=5000;
 function schedulePaymentPrompt(){
  clearTimeout(timer);
  if(document.hidden||dialog||store.session.measurement.paymentPromptSeen)return;
@@ -149,7 +149,12 @@ function schedulePaymentPrompt(){
 }
 document.addEventListener('visibilitychange',()=>{if(screen==='payment')schedulePaymentPrompt();});
 function closeDialog(focus=true){if(!dialog)return;dialog.remove();dialog=null;app.inert=false;app.removeAttribute('aria-hidden');document.body.classList.remove('reference-open');if(focus&&returnFocus?.isConnected)returnFocus.focus({preventScroll:true});returnFocus=null;if(focus&&screen==='payment')schedulePaymentPrompt();}
-function openDialog(html,trigger){returnFocus=trigger;dialog=document.createElement('div');dialog.className='reference-backdrop';dialog.innerHTML=`<section class="reference-dialog" role="dialog" aria-modal="true" aria-label="${html.includes('펼친')?'충전 화면':'테스트 진행'}">${html}</section>`;document.body.append(dialog);app.inert=true;app.setAttribute('aria-hidden','true');document.body.classList.add('reference-open');dialog.querySelector('button')?.focus();}
+function openDialog(html,trigger,dismissOnBackdrop=false){returnFocus=trigger;dialog=document.createElement('div');dialog.className='reference-backdrop';dialog.innerHTML=`<section class="reference-dialog" role="dialog" aria-modal="true" aria-labelledby="progress-dialog-title">${html}</section>`;dialog.querySelector('h2').id='progress-dialog-title';if(dismissOnBackdrop){
+ let startedOutside=false;
+ dialog.addEventListener('pointerdown',event=>{startedOutside=event.target===dialog;});
+ dialog.addEventListener('click',event=>{if(startedOutside&&event.target===dialog)closeDialog();});
+ }
+ document.body.append(dialog);app.inert=true;app.setAttribute('aria-hidden','true');document.body.classList.add('reference-open');dialog.querySelector('button')?.focus();}
 function menu(trigger){
  const decisionTask=isDecisionTask();
  const reentryTask=screen.startsWith('reentry-');
@@ -161,10 +166,9 @@ function menu(trigger){
    ?btn('reentry-done','질문으로 이동','secondary spaced')
    :btn('help','다음 행동을 모르겠어요','secondary spaced'));
  }
- openDialog(`<h2>테스트 진행</h2>${contextActions.join('')}
-  ${btn('dialog-close','화면으로 돌아가기','secondary spaced')}
+ openDialog(`<div class="progress-menu-heading"><h2>테스트 진행</h2>${btn('dialog-close','테스트 진행 메뉴 닫기','progress-menu-close',false,'<span aria-hidden="true">×</span>')}</div>${contextActions.join('')}
   ${btn('pause-participation','참여 중단하기','secondary spaced')}
-  <p class="participation-note">참여를 중단해도 같은 링크를 통해 이어서 진행할 수 있습니다.</p>`,trigger);
+  <p class="participation-note">참여를 중단해도 같은 링크를 통해 이어서 진행할 수 있습니다.</p>`,trigger,true);
 }
 function next(){const q=question();if(q){const m=validateAnswer(q,store.session.answers);if(m){error(m);return;}log('question-complete',q.id+' 답변 완료');if(q.id==='P2'){go('reentry');return;}const i=questions.indexOf(q);go(i===questions.length-1?'review':'q-'+questions[i+1].id);return;}const mapping={welcome:'screening',screening:'start',start:'consult',goal:'return',reentry:'reentry-home'};if(screen==='screening'&&(!store.session.screening.interest||!store.session.screening.used)){error('두 질문에 모두 답해 주세요.');return;}if(mapping[screen])go(mapping[screen]);}
 function taskPoint(event){
