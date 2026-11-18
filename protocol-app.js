@@ -60,6 +60,16 @@ function progressMenuButton(className){
 }
 const isDecisionTask=()=>['return','home','payment'].includes(screen);
 function controls(){return `<nav class="test-controls-bar" aria-label="테스트 진행"><span>사용자 테스트</span>${isDecisionTask()?btn('task-done','판단을 마쳤어요','decision-done'):''}${progressMenuButton('session-tools')}</nav>`;}
+function updateFooterFade(){
+ const footer=app.querySelector('.v5 .page-action:last-child');
+ if(!footer)return;
+ const remaining=footer.parentElement.getBoundingClientRect().bottom-footer.getBoundingClientRect().bottom;
+ const opacity=remaining<=1?0:Math.min(1,remaining/96);
+ footer.style.setProperty('--footer-fade',String(opacity));
+}
+window.addEventListener('scroll',updateFooterFade,{passive:true});
+window.addEventListener('resize',updateFooterFade);
+new ResizeObserver(updateFooterFade).observe(app);
 function render(){closeDialog(false);clearTimeout(timer);document.body.classList.toggle('has-test-controls',taskScreens.includes(screen));
  const q=question();if(q)app.innerHTML=q.id==='feedback'?finalFeedback(q):questionnaire(q);else switch(screen){
  case 'welcome':app.innerHTML=study(`${title('01 · 안내','참여 안내')}<p>사주모아에서 상담이 끝난 뒤의 화면을 살펴보는 테스트입니다.</p><div class="intro-section"><h2>실제 전화·결제는 진행되지 않아요</h2><p>화면의 버튼을 눌러도 실제로 전화가 연결되거나 결제되지 않습니다.</p></div><div class="intro-section"><h2>평소처럼 답해 주세요</h2><p>정답은 없습니다. 평소라면 어떻게 할지 답해 주세요. 모르는 내용은 모른다고 답하셔도 됩니다.</p></div><div class="intro-section"><h2>${previewMode?'미리보기 답변은 저장되지 않아요':'답변은 익명으로 저장돼요'}</h2><p>${previewMode?'입력 내용은 이 창에서만 유지되며 전송되지 않습니다.':'선택과 작성한 답변은 익명 참여번호와 함께 저장됩니다.'}</p></div>${previewMode?'':'<p class="safety">창을 닫아도 같은 기기와 브라우저에서 이어서 진행할 수 있습니다.</p>'}${action('안내를 확인했어요')}`);break;
@@ -85,7 +95,7 @@ function render(){closeDialog(false);clearTimeout(timer);document.body.classList
  else if(!['welcome','thanks','withdrawn','paused','resume','previous-version'].includes(screen))app.querySelector('.study-head-actions')?.insertAdjacentHTML('beforeend',progressMenuButton('study-menu'));
  if(['consult','return','reentry-modal'].includes(screen)){const bg=app.querySelector('.app-shell');bg.inert=true;bg.setAttribute('aria-hidden','true');}
  if(screen==='payment')schedulePaymentPrompt();
- app.focus({preventScroll:true});status();}
+ app.focus({preventScroll:true});status();updateFooterFade();}
 function save(){store.save();status();}
 function log(action,label=action){
  if(supported())store.log(screen==='previous-version'?'resume':screen,label||action,{action});
