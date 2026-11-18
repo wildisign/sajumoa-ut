@@ -96,3 +96,20 @@
 
 .as-is .consult-postpaid[aria-disabled=true]{background:#fff;border:1px solid #888;color:#808080;font-weight:400}
 .as-is .consult-now,.as-is .pay-entry{font-weight:400}
+
+.test-controls-bar .decision-done{margin-left:auto;color:#215f73;border-color:#90b3bf;font-weight:650}
+
+.reference-shot{display:block;width:100%;height:auto}
+.reference-box.modal,.reference-box.payment{height:auto;aspect-ratio:390/788}
+.reference-box.modal .reference-shot{height:100%;object-fit:contain}
+
+.question-page .reference-box,.question-page .reference-window{overflow:clip}
+.question-page .reference-shot{pointer-events:none}
+
+.payment-reference{margin:0;border:1px solid #ccc;background:white}
+.inline-reference{display:block;width:100%;border:0;padding:0;background:white;cursor:pointer;touch-action:pan-y}
+.shot-top,.shot-rest{display:block;overflow:clip}
+.shot-top{aspect-ratio:390/736}
+.shot-rest[hidden]{display:none}
+.shot-rest img{margin-top:-188.7179487%}
+.shot-toggle{display:grid;place-items:center;min-height:48px;border-block:1px solid #abc2ca;background:#f4f7f8;color:#215f73;font-weight:700}
