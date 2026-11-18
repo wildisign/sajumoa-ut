@@ -6,7 +6,7 @@ export const previousQuestions=[
  {id:'A2',number:'05-2',title:'충전 여부 결정 이유',prompt:'충전 여부를 결정한 가장 큰 이유는 무엇인가요?',reference:'modal',type:'text',unknown:'설명하기 어려워요'},
  {id:'A3',number:'05-3',title:'포인트와 후불 가격 비교',prompt:'아까 본 화면에서 포인트와 후불 중 어느 쪽이 더 저렴하다고 생각했나요?',options:['포인트가 더 저렴하다고 생각했어요','후불이 더 저렴하다고 생각했어요','가격을 비교하지 않았어요','잘 모르겠어요']},
  {id:'F1',number:'06-1',title:'추가 상담 결정 요소',prompt:'사주모아에서 내 돈으로 추가 상담을 받을지 결정한다면, 어떤 점을 중요하게 고려하시겠어요?',type:'factors',optional:true},
- {id:'V1',number:'06-2',title:'가입 혜택의 가치',prompt:'화면에서 안내된 신규 가입 혜택 10,000포인트는 얼마나 가치 있게 느껴지셨나요?',options:['1 매우 낮음','2 낮음','3 보통','4 높음','5 매우 높음']},
+ {id:'V1',number:'06-1',title:'가입 혜택의 가치',prompt:'화면에서 안내된 신규 가입 혜택 10,000포인트는 얼마나 가치 있게 느껴지셨나요?',options:['1 매우 낮음','2 낮음','3 보통','4 높음','5 매우 높음']},
  {id:'P1',number:'07-1',title:'실제로 결제될 금액',prompt:'표시된 최소 금액으로 충전한다면, 실제로 결제될 금액은 얼마라고 이해하셨나요?',reference:'payment',type:'text',placeholder:'금액을 입력해 주세요 (원)',unknown:'화면만으로 알기 어려워요'},
  {id:'P2',number:'07-2',title:'최소 결제금액 부담',prompt:'위 화면에서 실제로 결제해야 하는 최소 금액은 얼마나 부담스럽게 느껴지셨나요?',reference:'payment',options:['1 전혀 부담스럽지 않음','2 별로 부담스럽지 않음','3 보통','4 다소 부담스러움','5 매우 부담스러움']},
  {id:'R1',number:'09-1',title:'선택 전 예상한 일',prompt:'방금 선택한 항목을 누르기 전, 어떤 일이 일어날 것으로 예상했나요?',type:'text',unknown:'기억나지 않아요'},
@@ -27,9 +27,9 @@ export function reentryRoute(s){
  return s.measurement?.reentryHelpRequested?'help':'other';
 }
 export function participantQuestions(s){
- if(s.questionnaireVersion===5)return previousQuestions;
+ const schema=s.questionnaireVersion===5?previousQuestions:questions;
  const selected=['reconnect','reopen'].includes(reentryRoute(s));
- return selected?questions:questions.filter(q=>q.id!=='findDifficulty');
+ return schema.filter(q=>q.id!=='F1'&&(q.id!=='findDifficulty'||selected));
 }
 export const notFound='찾지 못했어요';
 export const questions=previousQuestions.flatMap(q=>{

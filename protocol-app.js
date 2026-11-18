@@ -4,10 +4,10 @@ import {initRemoteSync} from './sync.js';
 import {createTabGuard} from './tab-guard.js';
 import {isPreviewMode,createPreviewRuntime} from './preview-mode.js';
 import {esc,btn,icon,home,modal,phone,payment} from './views.js?v=20261118-list';
-import {VERSION,questions as revisedQuestions,previousQuestions,currentFactors,validateAnswer,routePrompts,reentryRoute,participantQuestions} from './protocol.js?v=20261118-factors';
+import {VERSION,questions as revisedQuestions,previousQuestions,currentFactors,validateAnswer,routePrompts,reentryRoute,participantQuestions} from './protocol.js?v=20261118-retire-f1';
 import {RESULTS_ORIGIN} from './config.js';
 let questions=revisedQuestions;
-const routeQuestion=()=>questions===previousQuestions?'q-R1':'q-routeThought';
+const routeQuestion=()=>store.session.questionnaireVersion===5?'q-R1':'q-routeThought';
 const supported=()=>[5,VERSION].includes(store.session.questionnaireVersion);
 async function availableVersion(){
  if(previewMode)return VERSION;
@@ -114,6 +114,7 @@ function finishedTask(entry){
   questions.slice(first-1).some(q=>Object.hasOwn(s.answers,q.id));
 }
 function skipFinishedTask(target){
+ if(target==='q-F1')return 'q-V1';
  if(target==='q-findDifficulty'&&!questionScreens.includes(target))return 'q-C1';
  if(['start','consult','phone','goal','return','home','payment'].includes(target)&&finishedTask('q-A1'))return 'q-A1';
  if(['reentry','reentry-home','reentry-modal'].includes(target)&&finishedTask(routeQuestion()))return routeQuestion();
