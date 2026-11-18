@@ -77,3 +77,17 @@
   background: currentColor;
   box-shadow: 0 -6px currentColor, 0 6px currentColor;
 }
+.reference-dialog:has(.participation-note) {
+  overflow-y: auto;
+}
+.participation-note {
+  margin: 4px 0 0;
+  color: #5d6b71;
+  font-size: 13px;
+  line-height: 1.6;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.preview-resume-note {
+  margin-top: 0;
+}

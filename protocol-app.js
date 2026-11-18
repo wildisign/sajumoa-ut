@@ -67,11 +67,12 @@ function render(){closeDialog(false);clearTimeout(timer);referenceSizer.disconne
  case 'review':app.innerHTML=study(`${title('11-1 · 최종 제출','테스트를 마쳤습니다')}<p>선택한 내용과 작성한 답변을 제출해 주세요.</p><p id="question-error" class="form-error" role="alert"></p>${action('제출','submit')}`);break;
  case 'thanks':app.innerHTML=study(`<h1 id="completion-title" aria-live="polite">답변을 저장하고 있습니다.</h1><p id="save-status" role="status" aria-live="polite"></p><p id="save-detail" class="muted"></p>${btn('retry','저장 다시 시도','secondary')}`,'thanks-page');break;
  case 'resume':app.innerHTML=study(`${title('진행 기록','이어서 진행할까요?')}<p>이 기기에 이전 진행 화면과 답변이 저장되어 있습니다.</p>${action('이어서 하기','resume')}${btn('new-person','새 참여 시작','secondary spaced')}`);break;
+ case 'paused':app.innerHTML=study(`<h1>참여를 중단했습니다.</h1><p>${previewMode?'이 창에서 이어서 진행할 수 있습니다.':'같은 기기와 브라우저에서 테스트 링크를 다시 열면 이어서 진행할 수 있습니다.'}</p>${action('이어서 하기','resume')}`);break;
  case 'previous-version':app.innerHTML=study(`${title('진행 기록','테스트가 업데이트됐어요')}<p>새 질문에 답하려면 처음부터 시작해 주세요.</p>${action('새 참여 시작','new-person')}`);break;
  case 'withdrawn':app.innerHTML=study('<h1>참여해 주셔서 감사합니다.</h1><p>참여를 종료했습니다.</p>');break;
  default:app.innerHTML=study('<h1>진행 상태를 확인해 주세요.</h1>');}
  if(taskScreens.includes(screen))app.insertAdjacentHTML('beforeend',controls());
- else if(!['welcome','thanks','withdrawn','resume','previous-version'].includes(screen))app.querySelector('.study-head-actions')?.insertAdjacentHTML('beforeend',progressMenuButton('study-menu'));
+ else if(!['welcome','thanks','withdrawn','paused','resume','previous-version'].includes(screen))app.querySelector('.study-head-actions')?.insertAdjacentHTML('beforeend',progressMenuButton('study-menu'));
  if(['consult','return','reentry-modal'].includes(screen)){const bg=app.querySelector('.app-shell');bg.inert=true;bg.setAttribute('aria-hidden','true');}
  const referenceWindow=app.querySelector('.reference-window');
  if(referenceWindow){
@@ -109,7 +110,23 @@ function status(){
 }
 function closeDialog(focus=true){if(!dialog)return;dialog.remove();dialog=null;app.inert=false;app.removeAttribute('aria-hidden');document.body.classList.remove('reference-open');if(focus&&returnFocus?.isConnected)returnFocus.focus({preventScroll:true});returnFocus=null;}
 function openDialog(html,trigger){returnFocus=trigger;dialog=document.createElement('div');dialog.className='reference-backdrop';dialog.innerHTML=`<section class="reference-dialog" role="dialog" aria-modal="true" aria-label="${html.includes('펼친')?'충전 화면':'테스트 진행'}">${html}</section>`;document.body.append(dialog);app.inert=true;app.setAttribute('aria-hidden','true');document.body.classList.add('reference-open');dialog.querySelector('button')?.focus();}
-function menu(trigger){const done=['return','home','payment'].includes(screen),reentry=screen.startsWith('reentry-');openDialog(`<h2>테스트 진행</h2>${done?btn('task-done','판단을 마쳤어요','primary'):''}${done||reentry?btn(reentry&&screen==='reentry-modal'?'reentry-done':'help',reentry&&screen==='reentry-modal'?'질문으로 이동':'다음 행동을 모르겠어요','secondary spaced'):''}${btn('withdraw','참여 종료하기','secondary spaced')}${btn('dialog-close','화면으로 돌아가기','secondary spaced')}`,trigger);}
+function menu(trigger){
+ const decisionTask=['return','home','payment'].includes(screen);
+ const reentryTask=screen.startsWith('reentry-');
+ const reentryReached=screen==='reentry-modal';
+ const contextActions=[];
+ if(decisionTask)contextActions.push(btn('task-done','판단을 마쳤어요','primary'));
+ if(decisionTask||reentryTask){
+  contextActions.push(reentryReached
+   ?btn('reentry-done','질문으로 이동','secondary spaced')
+   :btn('help','다음 행동을 모르겠어요','secondary spaced'));
+ }
+ openDialog(`<h2>테스트 진행</h2>${contextActions.join('')}
+  ${btn('dialog-close','화면으로 돌아가기','secondary spaced')}
+  ${btn('pause-participation','참여 중단하기','secondary spaced')}
+  <p class="participation-note">참여를 중단해도 같은 링크를 통해 이어서 진행할 수 있습니다.</p>
+  ${previewMode?'<p class="participation-note preview-resume-note">미리보기에서는 이 창에서만 이어서 진행할 수 있습니다.</p>':''}`,trigger);
+}
 function next(){const q=question();if(q){const m=validateAnswer(q,store.session.answers);if(m){error(m);return;}log('question-complete',q.id+' 답변 완료');if(q.id==='P2'){go('reentry');return;}const i=questions.indexOf(q);go(i===questions.length-1?'review':'q-'+questions[i+1].id);return;}const mapping={welcome:'screening',screening:'start',start:'consult',goal:'return',reentry:'reentry-home'};if(screen==='screening'&&(!store.session.screening.interest||!store.session.screening.used)){error('두 질문에 모두 답해 주세요.');return;}if(mapping[screen])go(mapping[screen]);}
 document.addEventListener('click',e=>{const b=e.target.closest('button[data-action]');if(!b||!active()||b.disabled)return;const a=b.dataset.action;log(a,b.dataset.label);
  if(['return','home'].includes(screen)&&b.closest('.app-shell,.consult-modal'))store.firstAction(b.dataset.label);
@@ -134,8 +151,14 @@ document.addEventListener('click',e=>{const b=e.target.closest('button[data-acti
  else if(a==='tab-home')go('home');
  else if(a==='submit'){const missing=questions.find(q=>validateAnswer(q,store.session.answers));if(missing){go('q-'+missing.id);error('제출하기 전에 답변을 확인해 주세요.');return;}store.submit(store.session.answers);go('thanks');void remote.flush();}
  else if(a==='retry')void remote.flush();
- else if(a==='withdraw'){const trigger=returnFocus;closeDialog(false);openDialog(`<h2>참여를 종료할까요?</h2><p>지금까지 작성한 기록을 남기고 이번 참여를 마칩니다.</p>${btn('withdraw-confirm','참여 종료하기','primary')}${btn('dialog-close','계속 진행하기','secondary spaced')}`,trigger);}
- else if(a==='withdraw-confirm'){store.withdraw(screen);screen='withdrawn';render();void remote.flush();}
+ else if(a==='pause-participation'){
+  store.pause(screen,'참가자가 참여 중단 선택');
+  screen='paused';
+  history.replaceState({screen},'',location.pathname+location.search);
+  render();
+  window.scrollTo(0,0);
+  void remote.flush();
+ }
  else if(a==='resume'){
   if(store.session.status==='paused')store.resume();
   go(validScreens.has(store.session.screen)?store.session.screen:'welcome');
