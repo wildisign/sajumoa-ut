@@ -1,3 +1,4 @@
+import {reentryHome} from './reentry-home.js';
 import {createStore} from './store.js';
 import {initRemoteSync} from './sync.js';
 import {createTabGuard} from './tab-guard.js';
@@ -39,7 +40,7 @@ const referenceAlts={
 };
 const referenceImage=key=>`<img class="reference-shot" src="./assets/ref-${key==='modal'?'list-modal':key}.webp" alt="${referenceAlts[key]}">`;
 function reference(key){
- if(key==='reentry')return '<figure class="payment-reference"><img class="reference-shot" src="./assets/ref-list-reentry.webp" alt="과업에서 본 재진입 홈 화면"></figure>';
+ if(key==='reentry')return '<figure class="payment-reference"><img class="reference-shot" src="./assets/ref-figma-reentry.webp" alt="과업에서 본 재진입 홈 화면"></figure>';
  if(key==='compare')return `<div class="compare-reference">${['a','b'].map(id=>`<h2>화면 ${id.toUpperCase()}</h2><div class="compare-panel">${referenceImage(id)}</div>`).join('')}</div>`;
  if(key==='payment')return `<figure class="payment-reference"><button type="button" class="inline-reference" data-action="expand" data-label="펼쳐보기" aria-label="포인트 충전 화면 펼쳐보기" aria-expanded="false" aria-describedby="payment-description"><span class="shot-top"><img class="reference-shot" src="./assets/ref-payment-top.webp" width="780" height="1650" alt=""></span><span class="shot-rest" hidden aria-hidden="true"><img class="reference-shot" src="./assets/ref-payment-rest.webp" width="780" height="1392" alt=""></span><span class="shot-toggle">펼쳐보기</span></button><figcaption class="screenreader-only" id="payment-description">${referenceAlts.payment}</figcaption></figure>`;
  return `<figure class="reference-box ${key}"><div class="reference-window">${referenceImage(key)}</div>${key==='payment'?btn('expand','펼쳐보기','expand-button'):''}</figure>`;
@@ -53,7 +54,6 @@ function finalFeedback(q){
  return study(`${title(q.number+' · 선택 질문',esc(q.title))}<label class="question-prompt" for="feedback">${esc(q.prompt)}</label><textarea id="feedback" data-answer="feedback" maxlength="20000">${esc(store.session.answers.feedback||'')}</textarea><p class="safety">의견이 없으면 바로 제출해 주세요.</p><p class="form-error" id="question-error" role="alert"></p>${action('답변 제출하기','submit')}`,'question-page');
 }
 function questionnaire(q){if(q.id==='routeThought')q={...q,prompt:routePrompts[reentryRoute(store.session)]};return study(`${q.reference?reference(q.reference):''}<section class="question-content">${title(q.number+' · 질문',esc(q.title))}<p class="question-prompt">${esc(q.prompt)}</p>${options(q)}${q.reason?`<label class="reason-label" for="reason">${esc(q.reason)} <span>선택</span></label><textarea id="reason" maxlength="20000" data-answer="${q.id}Reason">${esc(store.session.answers[q.id+'Reason']||'')}</textarea>`:''}<p class="form-error" id="question-error" role="alert"></p></section>${action(q.id==='P2'?'다음 상황으로':'다음')}`,'question-page');}
-function reentryHome(){return home(`<article class="reconnect-card"><span class="card-close" aria-hidden="true" style="display:grid;place-items:center">${icon('close')}</span><div class="reconnect-profile"><div class="portrait"></div><div><p>지난 상담 · 5분</p><h2>서가비 선생님</h2></div></div><p>포인트가 부족해 상담이 종료됐어요.</p><div class="reconnect-bottom"><span>1,200P / 30초</span>${btn('reconnect','이어서 상담하기','primary')}</div></article>`);}
 function reentryModal(){return `${reentryHome()}<div class="modal-backdrop"><section class="consult-modal tobe" role="dialog" aria-modal="true" aria-labelledby="consult-title"><h1 class="modal-title" id="consult-title">상담하기</h1>${btn('close','닫기','modal-close',false,icon('close'))}<div class="consult-profile"><div class="portrait"></div><strong>서가비 선생님</strong></div><div class="balance-row"><div class="balance-copy">보유 포인트<strong>0P</strong></div>${btn('tobe-charge','포인트 충전','pay-entry')}</div><div class="modal-divider"></div><div class="consult-body"><h2>전화 상담</h2><div class="rate-box"><span><strong>1,200P</strong> / 30초</span><small>약 0분 상담 가능</small></div>${btn('tobe-call','전화 상담하기','consult-now')}<div class="postpaid-secondary"><strong>후불 전화 상담</strong><span>1,600원 / 30초</span><p>안내에 따라 상담사 고유번호 223번을 입력해 주세요.</p>${btn('postpaid','후불 전화 상담','consult-postpaid',true)}</div></div></section></div>`;}
 function progressMenuButton(className){
  return btn('menu','테스트 진행 메뉴',className,false,'<span class="progress-menu-dots" aria-hidden="true"></span>');
@@ -179,7 +179,7 @@ function taskPoint(event){
  const path=[];
  for(let node=target;node!==app;node=node.parentElement)path.unshift(Array.prototype.indexOf.call(node.parentElement.children,node));
  const fraction=n=>Math.round(Math.max(0,Math.min(1,n))*10000)/10000;
- return {version:1,...(isDecisionTask()?{layout:'decision'}:{}),view:['consult','return','home','reentry-home','reentry-modal'].includes(screen)?screen+'-list':screen,path:path.join('.'),u:fraction((event.clientX-rect.left)/rect.width),v:fraction((event.clientY-rect.top)/rect.height)};
+ return {version:1,...(isDecisionTask()?{layout:'decision'}:{}),view:screen.startsWith('reentry-')?screen+'-figma':['consult','return','home'].includes(screen)?screen+'-list':screen,path:path.join('.'),u:fraction((event.clientX-rect.left)/rect.width),v:fraction((event.clientY-rect.top)/rect.height)};
 }
 document.addEventListener('click',e=>{
  if(!active()||e.target.closest('.reconnect-card .card-close'))return;
