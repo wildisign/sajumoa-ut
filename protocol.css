@@ -121,3 +121,18 @@
 .list-advisors{aspect-ratio:1080/1634;background-position:center 68.965517%}
 .bottom-nav.list-tabs{height:auto;aspect-ratio:1080/180;border:0;padding:0;background-position:center bottom}
 .captured-list :is(.list-categories,.list-advisors,.list-tabs)>button{position:absolute;background:transparent;border:0;padding:0;margin:0}
+
+html:has(#app > .modal-backdrop),
+body:has(#app > .modal-backdrop) {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+#app > .modal-backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+#app > .modal-backdrop > .consult-modal {
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}

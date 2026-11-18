@@ -114,7 +114,9 @@ function go(next){
  if(next===routeQuestion())store.session.measurement.reentryTaskFinished=true;
  const reference=question()?.reference;
  const preserve=reference&&questions.find(q=>'q-'+q.id===next)?.reference===reference;
- const offset=preserve?scrollY:0;
+ const listForModal={'return':'home','reentry-modal':'reentry-home'};
+ const sameList=listForModal[next]===screen||listForModal[screen]===next;
+ const offset=preserve||sameList?scrollY:0;
  screen=next;store.setScreen(next);
  history.pushState({screen},'',location.pathname+location.search);
  render();
