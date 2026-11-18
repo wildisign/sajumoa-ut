@@ -15,7 +15,7 @@ const validScreens=new Set(['welcome','screening','start','consult','phone','goa
 const terminal=()=>['submitted','withdrawn'].includes(store.session.status);
 const active=()=>ready&&guard.isOwner&&remote?.status.state!=='conflict';
 const question=()=>questions.find(q=>'q-'+q.id===screen);
-function study(body,cls=''){return `<section class="study v5 ${cls}"><header class="study-head"><span class="study-brand">사주모아</span><span class="study-badge">사용자 테스트</span></header><div class="study-body">${body}</div></section>`;}
+function study(body,cls=''){return `<section class="study v5 ${cls}"><header class="study-head"><span class="study-brand">사주모아</span><div class="study-head-actions"><span class="study-badge">사용자 테스트</span></div></header><div class="study-body">${body}</div></section>`;}
 function action(label='다음',id='next'){return `<div class="page-action">${btn(id,label,'primary')}</div>`;}
 function title(num,text){return `<p class="step">${num}</p><h1>${text}</h1>`;}
 function scenario(num,heading,situation,task,label){return study(`${title(num,heading)}<section class="scenario"><h2>현재 상황</h2><p>${situation}</p></section><section class="task-instruction"><h2>해 볼 일</h2><p>${task}</p></section><p class="safety">실제 전화 연결이나 결제는 진행되지 않습니다.</p>${screen==='goal'?'<p class="safety">진행을 마치거나 도움이 필요하면 오른쪽 위 테스트 진행 메뉴(⋮)를 이용해 주세요.</p>':''}${action(label)}`);}
@@ -71,7 +71,7 @@ function render(){closeDialog(false);clearTimeout(timer);referenceSizer.disconne
  case 'withdrawn':app.innerHTML=study('<h1>참여해 주셔서 감사합니다.</h1><p>참여를 종료했습니다.</p>');break;
  default:app.innerHTML=study('<h1>진행 상태를 확인해 주세요.</h1>');}
  if(taskScreens.includes(screen))app.insertAdjacentHTML('beforeend',controls());
- else if(!['welcome','thanks','withdrawn','resume','previous-version'].includes(screen))app.querySelector('.study-head')?.insertAdjacentHTML('beforeend',progressMenuButton('study-menu'));
+ else if(!['welcome','thanks','withdrawn','resume','previous-version'].includes(screen))app.querySelector('.study-head-actions')?.insertAdjacentHTML('beforeend',progressMenuButton('study-menu'));
  if(['consult','return','reentry-modal'].includes(screen)){const bg=app.querySelector('.app-shell');bg.inert=true;bg.setAttribute('aria-hidden','true');}
  const referenceWindow=app.querySelector('.reference-window');
  if(referenceWindow){
