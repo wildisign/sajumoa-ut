@@ -11,14 +11,14 @@ query.delete('new');
 history.replaceState(null,'',location.pathname+(query.size?'?'+query:''));
 let store,remote,unsubscribe,screen='welcome',timer,dialog,returnFocus,ready=false,initializing=false;
 const taskScreens=['consult','phone','return','home','payment','reentry-home','reentry-modal'];
-const validScreens=new Set(['welcome','screening','start','consult','phone','goal','return','home','payment','reentry','reentry-home','reentry-modal','review','thanks','paused','withdrawn',...questions.map(q=>'q-'+q.id)]);
+const validScreens=new Set(['welcome','screening','start','consult','phone','goal','return','home','payment','reentry','reentry-home','reentry-modal','review','thanks','withdrawn',...questions.map(q=>'q-'+q.id)]);
 const terminal=()=>['submitted','withdrawn'].includes(store.session.status);
 const active=()=>ready&&guard.isOwner&&remote?.status.state!=='conflict';
 const question=()=>questions.find(q=>'q-'+q.id===screen);
 function study(body,cls=''){return `<section class="study v5 ${cls}"><header class="study-head"><span class="study-brand">사주모아</span><span class="study-badge">사용자 테스트</span></header><div class="study-body">${body}</div></section>`;}
 function action(label='다음',id='next'){return `<div class="page-action">${btn(id,label,'primary')}</div>`;}
 function title(num,text){return `<p class="step">${num}</p><h1>${text}</h1>`;}
-function scenario(num,heading,situation,task,label){return study(`${title(num,heading)}<section class="scenario"><h2>현재 상황</h2><p>${situation}</p></section><section class="task-instruction"><h2>해 볼 일</h2><p>${task}</p></section><p class="safety">실제 전화 연결이나 결제는 진행되지 않습니다.</p>${screen==='goal'?'<p class="safety">진행을 마치거나 도움이 필요하면 상단 ⋯ 메뉴를 이용해 주세요.</p>':''}${action(label)}`);}
+function scenario(num,heading,situation,task,label){return study(`${title(num,heading)}<section class="scenario"><h2>현재 상황</h2><p>${situation}</p></section><section class="task-instruction"><h2>해 볼 일</h2><p>${task}</p></section><p class="safety">실제 전화 연결이나 결제는 진행되지 않습니다.</p>${screen==='goal'?'<p class="safety">진행을 마치거나 도움이 필요하면 오른쪽 위 테스트 진행 메뉴(⋮)를 이용해 주세요.</p>':''}${action(label)}`);}
 function readOnly(html,summaryOnly=false){
  const template=document.createElement('template');
  template.innerHTML=html;
@@ -46,10 +46,13 @@ function options(q){const a=store.session.answers;
 function questionnaire(q){return study(`${q.reference?reference(q.reference):''}<section class="question-content">${title(q.number+' · 질문',esc(q.title))}<p class="question-prompt">${esc(q.prompt)}</p>${options(q)}${q.reason?`<label class="reason-label" for="reason">${esc(q.reason)} <span>선택</span></label><textarea id="reason" maxlength="20000" data-answer="${q.id}Reason">${esc(store.session.answers[q.id+'Reason']||'')}</textarea>`:''}<p class="form-error" id="question-error" role="alert"></p></section>${action(q.id==='P2'?'다음 상황으로':'다음')}`,'question-page');}
 function reentryHome(){return home().replace('<div class="filter-bar">',`<article class="reconnect-card">${btn('dismiss-card','상담 카드 닫기','card-close',false,icon('close'))}<div class="reconnect-profile"><div class="portrait"></div><div><p>지난 상담 · 5분</p><h2>서가비 선생님</h2></div></div><p>포인트가 부족해 상담이 종료됐어요.</p><div class="reconnect-bottom"><span>1,200P / 30초</span>${btn('reconnect','이어서 상담하기','primary')}</div></article><div class="filter-bar">`);}
 function reentryModal(){return `${reentryHome()}<div class="modal-backdrop"><section class="consult-modal tobe" role="dialog" aria-modal="true" aria-labelledby="consult-title"><h1 class="modal-title" id="consult-title">상담하기</h1>${btn('close','닫기','modal-close',false,icon('close'))}<div class="consult-profile"><div class="portrait"></div><strong>서가비 선생님</strong></div><div class="balance-row"><div class="balance-copy">보유 포인트<strong>0P</strong></div>${btn('tobe-charge','포인트 충전','pay-entry')}</div><div class="modal-divider"></div><div class="consult-body"><h2>전화 상담</h2><div class="rate-box"><span><strong>1,200P</strong> / 30초</span><small>약 0분 상담 가능</small></div>${btn('tobe-call','전화 상담하기','consult-now')}<div class="postpaid-secondary"><strong>후불 전화 상담</strong><span>1,600원 / 30초</span><p>안내에 따라 상담사 고유번호 223번을 입력해 주세요.</p>${btn('postpaid','후불 전화 상담','consult-postpaid',true)}</div></div></section></div>`;}
-function controls(){return `<nav class="test-controls-bar" aria-label="테스트 진행"><span>사용자 테스트</span>${btn('menu','테스트 진행 메뉴','session-tools',false,'<span aria-hidden="true">⋯</span>')}</nav>`;}
+function progressMenuButton(className){
+ return btn('menu','테스트 진행 메뉴',className,false,'<span class="progress-menu-dots" aria-hidden="true"></span>');
+}
+function controls(){return `<nav class="test-controls-bar" aria-label="테스트 진행"><span>사용자 테스트</span>${progressMenuButton('session-tools')}</nav>`;}
 function render(){closeDialog(false);clearTimeout(timer);referenceSizer.disconnect();document.body.classList.toggle('has-test-controls',taskScreens.includes(screen));
  const q=question();if(q)app.innerHTML=questionnaire(q);else switch(screen){
- case 'welcome':app.innerHTML=study(`${title('01 · 안내','참여 안내')}<p>사주모아에서 상담이 끝난 뒤의 화면을 살펴보는 테스트입니다.</p><div class="intro-section"><h2>실제 전화·결제는 진행되지 않아요</h2><p>화면의 버튼을 눌러도 실제로 전화가 연결되거나 결제되지 않습니다.</p></div><div class="intro-section"><h2>평소처럼 답해 주세요</h2><p>정답은 없습니다. 평소라면 어떻게 할지 답해 주세요. 모르는 내용은 모른다고 답하셔도 됩니다.</p></div><div class="intro-section"><h2>${previewMode?'미리보기 답변은 저장되지 않아요':'답변은 익명으로 저장돼요'}</h2><p>${previewMode?'입력 내용은 이 창에서만 유지되며 전송되지 않습니다.':'선택과 작성한 답변은 익명 참여번호와 함께 저장됩니다.'}</p></div><p class="safety">참여 중 언제든 잠시 멈추거나 종료할 수 있습니다.</p>${action('안내를 확인했어요')}`);break;
+ case 'welcome':app.innerHTML=study(`${title('01 · 안내','참여 안내')}<p>사주모아에서 상담이 끝난 뒤의 화면을 살펴보는 테스트입니다.</p><div class="intro-section"><h2>실제 전화·결제는 진행되지 않아요</h2><p>화면의 버튼을 눌러도 실제로 전화가 연결되거나 결제되지 않습니다.</p></div><div class="intro-section"><h2>평소처럼 답해 주세요</h2><p>정답은 없습니다. 평소라면 어떻게 할지 답해 주세요. 모르는 내용은 모른다고 답하셔도 됩니다.</p></div><div class="intro-section"><h2>${previewMode?'미리보기 답변은 저장되지 않아요':'답변은 익명으로 저장돼요'}</h2><p>${previewMode?'입력 내용은 이 창에서만 유지되며 전송되지 않습니다.':'선택과 작성한 답변은 익명 참여번호와 함께 저장됩니다.'}</p></div>${previewMode?'':'<p class="safety">창을 닫아도 같은 기기와 브라우저에서 이어서 진행할 수 있습니다.</p>'}${action('안내를 확인했어요')}`);break;
  case 'screening':app.innerHTML=study(`${title('02 · 질문','시작 전 질문')}${[['interest','운세 상담에 관심이 있나요?',['관심 있어요','별로 관심 없어요']],['used','사주모아를 써본 적이 있나요?',['써본 적 있어요','써본 적 없어요']]].map(([key,prompt,opts])=>`<fieldset class="screening-group"><legend>${prompt}</legend>${opts.map(l=>`<label class="ut-option"><input type="radio" name="${key}" data-screening="${key}" value="${l}" ${store.session.screening[key]===l?'checked':''}>${l}</label>`).join('')}</fieldset>`).join('')}<p id="question-error" class="form-error" role="alert"></p>${action()}`);break;
  case 'start':app.innerHTML=scenario('03-1 · 상담 체험','서가비 선생님과<br>상담하려고 합니다','사주모아에 가입해 혜택으로 받은<br>10,000포인트를 보유하고 있습니다.','다음 화면에서 서가비 선생님과 상담을 시작해 주세요.','시작하기');break;
  case 'consult':app.innerHTML=modal(false);break;
@@ -65,11 +68,10 @@ function render(){closeDialog(false);clearTimeout(timer);referenceSizer.disconne
  case 'thanks':app.innerHTML=study(`<h1 id="completion-title" aria-live="polite">답변을 저장하고 있습니다.</h1><p id="save-status" role="status" aria-live="polite"></p><p id="save-detail" class="muted"></p>${btn('retry','저장 다시 시도','secondary')}`,'thanks-page');break;
  case 'resume':app.innerHTML=study(`${title('진행 기록','이어서 진행할까요?')}<p>이 기기에 이전 진행 화면과 답변이 저장되어 있습니다.</p>${action('이어서 하기','resume')}${btn('new-person','새 참여 시작','secondary spaced')}`);break;
  case 'previous-version':app.innerHTML=study(`${title('진행 기록','테스트가 업데이트됐어요')}<p>새 질문에 답하려면 처음부터 시작해 주세요.</p>${action('새 참여 시작','new-person')}`);break;
- case 'paused':app.innerHTML=study(`${title('잠시 중단','진행을 잠시 멈췄습니다')}<p>같은 기기에서 이어서 진행할 수 있습니다.</p>${action('이어서 하기','resume')}`);break;
  case 'withdrawn':app.innerHTML=study('<h1>참여해 주셔서 감사합니다.</h1><p>참여를 종료했습니다.</p>');break;
  default:app.innerHTML=study('<h1>진행 상태를 확인해 주세요.</h1>');}
  if(taskScreens.includes(screen))app.insertAdjacentHTML('beforeend',controls());
- else if(!['thanks','withdrawn','resume','previous-version','paused'].includes(screen))app.querySelector('.study-head')?.insertAdjacentHTML('beforeend',btn('menu','테스트 진행 메뉴','study-menu',false,'<span aria-hidden="true">⋯</span>'));
+ else if(!['welcome','thanks','withdrawn','resume','previous-version'].includes(screen))app.querySelector('.study-head')?.insertAdjacentHTML('beforeend',progressMenuButton('study-menu'));
  if(['consult','return','reentry-modal'].includes(screen)){const bg=app.querySelector('.app-shell');bg.inert=true;bg.setAttribute('aria-hidden','true');}
  const referenceWindow=app.querySelector('.reference-window');
  if(referenceWindow){
@@ -107,7 +109,7 @@ function status(){
 }
 function closeDialog(focus=true){if(!dialog)return;dialog.remove();dialog=null;app.inert=false;app.removeAttribute('aria-hidden');document.body.classList.remove('reference-open');if(focus&&returnFocus?.isConnected)returnFocus.focus({preventScroll:true});returnFocus=null;}
 function openDialog(html,trigger){returnFocus=trigger;dialog=document.createElement('div');dialog.className='reference-backdrop';dialog.innerHTML=`<section class="reference-dialog" role="dialog" aria-modal="true" aria-label="${html.includes('펼친')?'충전 화면':'테스트 진행'}">${html}</section>`;document.body.append(dialog);app.inert=true;app.setAttribute('aria-hidden','true');document.body.classList.add('reference-open');dialog.querySelector('button')?.focus();}
-function menu(trigger){const done=['return','home','payment'].includes(screen),reentry=screen.startsWith('reentry-');openDialog(`<h2>테스트 진행</h2>${done?btn('task-done','판단을 마쳤어요','primary'):''}${done||reentry?btn(reentry&&screen==='reentry-modal'?'reentry-done':'help',reentry&&screen==='reentry-modal'?'질문으로 이동':'다음 행동을 모르겠어요','secondary spaced'):''}${btn('pause','잠시 멈추기','secondary spaced')}${btn('withdraw','참여 종료하기','secondary spaced')}${btn('dialog-close','화면으로 돌아가기','secondary spaced')}`,trigger);}
+function menu(trigger){const done=['return','home','payment'].includes(screen),reentry=screen.startsWith('reentry-');openDialog(`<h2>테스트 진행</h2>${done?btn('task-done','판단을 마쳤어요','primary'):''}${done||reentry?btn(reentry&&screen==='reentry-modal'?'reentry-done':'help',reentry&&screen==='reentry-modal'?'질문으로 이동':'다음 행동을 모르겠어요','secondary spaced'):''}${btn('withdraw','참여 종료하기','secondary spaced')}${btn('dialog-close','화면으로 돌아가기','secondary spaced')}`,trigger);}
 function next(){const q=question();if(q){const m=validateAnswer(q,store.session.answers);if(m){error(m);return;}log('question-complete',q.id+' 답변 완료');if(q.id==='P2'){go('reentry');return;}const i=questions.indexOf(q);go(i===questions.length-1?'review':'q-'+questions[i+1].id);return;}const mapping={welcome:'screening',screening:'start',start:'consult',goal:'return',reentry:'reentry-home'};if(screen==='screening'&&(!store.session.screening.interest||!store.session.screening.used)){error('두 질문에 모두 답해 주세요.');return;}if(mapping[screen])go(mapping[screen]);}
 document.addEventListener('click',e=>{const b=e.target.closest('button[data-action]');if(!b||!active()||b.disabled)return;const a=b.dataset.action;log(a,b.dataset.label);
  if(['return','home'].includes(screen)&&b.closest('.app-shell,.consult-modal'))store.firstAction(b.dataset.label);
@@ -131,7 +133,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('button[data-acti
  else if(a==='modal-payment'||a==='tab-coins'){if(screen.startsWith('reentry-'))go('q-R1');else{store.arrive(a==='modal-payment'?'modal_payment':'bottom_tab');go('payment');}}
  else if(a==='tab-home')go('home');
  else if(a==='submit'){const missing=questions.find(q=>validateAnswer(q,store.session.answers));if(missing){go('q-'+missing.id);error('제출하기 전에 답변을 확인해 주세요.');return;}store.submit(store.session.answers);go('thanks');void remote.flush();}
- else if(a==='retry')void remote.flush();else if(a==='pause'){store.pause(screen);screen='paused';render();void remote.flush();}
+ else if(a==='retry')void remote.flush();
  else if(a==='withdraw'){const trigger=returnFocus;closeDialog(false);openDialog(`<h2>참여를 종료할까요?</h2><p>지금까지 작성한 기록을 남기고 이번 참여를 마칩니다.</p>${btn('withdraw-confirm','참여 종료하기','primary')}${btn('dialog-close','계속 진행하기','secondary spaced')}`,trigger);}
  else if(a==='withdraw-confirm'){store.withdraw(screen);screen='withdrawn';render();void remote.flush();}
  else if(a==='resume'){
@@ -187,7 +189,7 @@ async function init(){
   }
   ready=true;
   if(store.session.questionnaireVersion!==VERSION)screen='previous-version';
-  else if(store.restored&&(!sameTab||newRequested))screen='resume';
+  else if(store.restored&&(!sameTab||newRequested||store.session.status==='paused'))screen='resume';
   else screen=validScreens.has(store.session.screen)?store.session.screen:'welcome';
   connect();
   render();
