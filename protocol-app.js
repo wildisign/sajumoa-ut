@@ -3,7 +3,19 @@ import {initRemoteSync} from './sync.js';
 import {createTabGuard} from './tab-guard.js';
 import {isPreviewMode,createPreviewRuntime} from './preview-mode.js';
 import {esc,btn,icon,home,modal,phone,payment} from './views.js?v=20261118-asis';
-import {VERSION,questions,factors,validateAnswer} from './protocol.js?v=20261118-feedback';
+import {VERSION,questions as revisedQuestions,previousQuestions,factors,validateAnswer,routePrompts,reentryRoute} from './protocol.js?v=20261118-routes';
+import {RESULTS_ORIGIN} from './config.js';
+let questions=revisedQuestions;
+const routeQuestion=()=>questions===previousQuestions?'q-R1':'q-routeThought';
+const supported=()=>[5,VERSION].includes(store.session.questionnaireVersion);
+async function availableVersion(){
+ if(previewMode)return VERSION;
+ try{
+  const response=await fetch(RESULTS_ORIGIN+'/api/health',{cache:'no-store',signal:AbortSignal.timeout(3000)});
+  const data=await response.json();
+  return data.ok&&data.questionnaireVersion>=VERSION?VERSION:5;
+ }catch{return 5;}
+}
 const app=document.querySelector('#app'),warning=document.querySelector('#storage-warning');
 const previewMode=isPreviewMode(location.search),preview=previewMode?createPreviewRuntime():null,guard=preview?.guard||createTabGuard();
 const query=new URLSearchParams(location.search),newRequested=query.has('new');
@@ -11,7 +23,7 @@ query.delete('new');
 history.replaceState(null,'',location.pathname+(query.size?'?'+query:''));
 let store,remote,unsubscribe,screen='welcome',timer,dialog,returnFocus,ready=false,initializing=false;
 const taskScreens=['consult','phone','return','home','payment','reentry-home','reentry-modal'];
-const validScreens=new Set(['welcome','screening','start','consult','phone','goal','return','home','payment','reentry','reentry-home','reentry-modal','review','thanks','withdrawn',...questions.map(q=>'q-'+q.id)]);
+const validScreens=new Set(['welcome','screening','start','consult','phone','goal','return','home','payment','reentry','reentry-home','reentry-modal','review','thanks','withdrawn',...[...previousQuestions,...revisedQuestions].map(q=>'q-'+q.id)]);
 const terminal=()=>['submitted','withdrawn'].includes(store.session.status);
 const active=()=>ready&&guard.isOwner&&remote?.status.state!=='conflict';
 const question=()=>questions.find(q=>'q-'+q.id===screen);
@@ -27,6 +39,7 @@ const referenceAlts={
 };
 const referenceImage=key=>`<img class="reference-shot" src="./assets/ref-${key}.webp" alt="${referenceAlts[key]}">`;
 function reference(key){
+ if(key==='reentry')return '<figure class="payment-reference"><img class="reference-shot" src="./assets/ref-reentry.webp" alt="과업에서 본 재진입 홈 화면"></figure>';
  if(key==='compare')return `<div class="compare-reference">${['a','b'].map(id=>`<h2>화면 ${id.toUpperCase()}</h2><div class="compare-panel">${referenceImage(id)}</div>`).join('')}</div>`;
  if(key==='payment')return `<figure class="payment-reference"><button type="button" class="inline-reference" data-action="expand" data-label="펼쳐보기" aria-label="포인트 충전 화면 펼쳐보기" aria-expanded="false" aria-describedby="payment-description"><span class="shot-top">${referenceImage('payment')}</span><span class="shot-toggle">펼쳐보기</span><span class="shot-rest" hidden aria-hidden="true"><img class="reference-shot" src="./assets/ref-payment.webp" alt=""></span></button><figcaption class="screenreader-only" id="payment-description">${referenceAlts.payment}</figcaption></figure>`;
  return `<figure class="reference-box ${key}"><div class="reference-window">${referenceImage(key)}</div>${key==='payment'?btn('expand','펼쳐보기','expand-button'):''}</figure>`;
@@ -39,7 +52,7 @@ function options(q){const a=store.session.answers;
 function finalFeedback(q){
  return study(`${title(q.number+' · 선택 질문',esc(q.title))}<label class="question-prompt" for="feedback">${esc(q.prompt)}</label><textarea id="feedback" data-answer="feedback" maxlength="20000">${esc(store.session.answers.feedback||'')}</textarea><p class="safety">의견이 없으면 바로 제출해 주세요.</p><p class="form-error" id="question-error" role="alert"></p>${action('답변 제출하기','submit')}`,'question-page');
 }
-function questionnaire(q){return study(`${q.reference?reference(q.reference):''}<section class="question-content">${title(q.number+' · 질문',esc(q.title))}<p class="question-prompt">${esc(q.prompt)}</p>${options(q)}${q.reason?`<label class="reason-label" for="reason">${esc(q.reason)} <span>선택</span></label><textarea id="reason" maxlength="20000" data-answer="${q.id}Reason">${esc(store.session.answers[q.id+'Reason']||'')}</textarea>`:''}<p class="form-error" id="question-error" role="alert"></p></section>${action(q.id==='P2'?'다음 상황으로':'다음')}`,'question-page');}
+function questionnaire(q){if(q.id==='routeThought')q={...q,prompt:routePrompts[reentryRoute(store.session)]};return study(`${q.reference?reference(q.reference):''}<section class="question-content">${title(q.number+' · 질문',esc(q.title))}<p class="question-prompt">${esc(q.prompt)}</p>${options(q)}${q.reason?`<label class="reason-label" for="reason">${esc(q.reason)} <span>선택</span></label><textarea id="reason" maxlength="20000" data-answer="${q.id}Reason">${esc(store.session.answers[q.id+'Reason']||'')}</textarea>`:''}<p class="form-error" id="question-error" role="alert"></p></section>${action(q.id==='P2'?'다음 상황으로':'다음')}`,'question-page');}
 function reentryHome(){return home().replace('<div class="filter-bar">',`<article class="reconnect-card"><span class="card-close" aria-hidden="true" style="display:grid;place-items:center">${icon('close')}</span><div class="reconnect-profile"><div class="portrait"></div><div><p>지난 상담 · 5분</p><h2>서가비 선생님</h2></div></div><p>포인트가 부족해 상담이 종료됐어요.</p><div class="reconnect-bottom"><span>1,200P / 30초</span>${btn('reconnect','이어서 상담하기','primary')}</div></article><div class="filter-bar">`);}
 function reentryModal(){return `${reentryHome()}<div class="modal-backdrop"><section class="consult-modal tobe" role="dialog" aria-modal="true" aria-labelledby="consult-title"><h1 class="modal-title" id="consult-title">상담하기</h1>${btn('close','닫기','modal-close',false,icon('close'))}<div class="consult-profile"><div class="portrait"></div><strong>서가비 선생님</strong></div><div class="balance-row"><div class="balance-copy">보유 포인트<strong>0P</strong></div>${btn('tobe-charge','포인트 충전','pay-entry')}</div><div class="modal-divider"></div><div class="consult-body"><h2>전화 상담</h2><div class="rate-box"><span><strong>1,200P</strong> / 30초</span><small>약 0분 상담 가능</small></div>${btn('tobe-call','전화 상담하기','consult-now')}<div class="postpaid-secondary"><strong>후불 전화 상담</strong><span>1,600원 / 30초</span><p>안내에 따라 상담사 고유번호 223번을 입력해 주세요.</p>${btn('postpaid','후불 전화 상담','consult-postpaid',true)}</div></div></section></div>`;}
 function progressMenuButton(className){
@@ -75,9 +88,10 @@ function render(){closeDialog(false);clearTimeout(timer);document.body.classList
  app.focus({preventScroll:true});status();}
 function save(){store.save();status();}
 function log(action,label=action){
- if(store.session.questionnaireVersion===VERSION)store.log(screen==='previous-version'?'resume':screen,label||action,{action});
+ if(supported())store.log(screen==='previous-version'?'resume':screen,label||action,{action});
 }
-const questionScreens=['screening',...questions.map(q=>'q-'+q.id)];
+let questionScreens;
+function useVersion(){questions=store.session.questionnaireVersion===5?previousQuestions:revisedQuestions;questionScreens=['screening',...questions.map(q=>'q-'+q.id)];}
 function previousQuestion(){
  const index=questionScreens.indexOf(screen==='review'?'q-feedback':screen);
  return index>0?questionScreens[index-1]:null;
@@ -91,13 +105,13 @@ function finishedTask(entry){
 }
 function skipFinishedTask(target){
  if(['start','consult','phone','goal','return','home','payment'].includes(target)&&finishedTask('q-A1'))return 'q-A1';
- if(['reentry','reentry-home','reentry-modal'].includes(target)&&finishedTask('q-R1'))return 'q-R1';
+ if(['reentry','reentry-home','reentry-modal'].includes(target)&&finishedTask(routeQuestion()))return routeQuestion();
  return target;
 }
 function go(next){
  next=skipFinishedTask(next);
  if(next==='q-A1')store.session.measurement.firstTaskFinished=true;
- if(next==='q-R1')store.session.measurement.reentryTaskFinished=true;
+ if(next===routeQuestion())store.session.measurement.reentryTaskFinished=true;
  const reference=question()?.reference;
  const preserve=reference&&questions.find(q=>'q-'+q.id===next)?.reference===reference;
  const offset=preserve?scrollY:0;
@@ -187,18 +201,18 @@ document.addEventListener('click',e=>{
   const reentry=screen.startsWith('reentry-');
   const key=reentry?'reentryHelpRequested':a==='help'?'helpRequested':'decisionComplete';
   store.session.measurement[key]=true;
-  save();go(reentry?'q-R1':'q-A1');
+  save();go(reentry?routeQuestion():'q-A1');
  }
  else if(a==='reentry-done'||a==='tobe-charge'||a==='tobe-call'){
   store.session.measurement.reentryCompleted=true;
-  save();go('q-R1');
+  save();go(routeQuestion());
  }
  else if(a==='consult-now'&&screen==='consult')go('phone');else if(a==='end-call')go('goal');
  else if(a==='close')go(screen==='reentry-modal'?'reentry-home':'home');
  else if(a==='reconnect'||(a==='reopen'&&screen==='reentry-home')){store.session.measurement.reentryAction=a;save();go('reentry-modal');}
  else if(a==='reopen'){store.returnToModal();go('return');}
- else if(a==='modal-payment'||a==='tab-coins'){if(screen.startsWith('reentry-'))go('q-R1');else{store.arrive(a==='modal-payment'?'modal_payment':'bottom_tab');go('payment');}}
- else if(a==='tab-home')go('home');
+ else if(a==='modal-payment'||a==='tab-coins'){if(screen.startsWith('reentry-'))go(routeQuestion());else{store.arrive(a==='modal-payment'?'modal_payment':'bottom_tab');go('payment');}}
+ else if(a==='tab-home')go(screen==='reentry-home'?'reentry-home':'home');
  else if(a==='submit'){const missing=questions.find(q=>validateAnswer(q,store.session.answers));if(missing){go('q-'+missing.id);error('제출하기 전에 답변을 확인해 주세요.');return;}store.submit(store.session.answers);go('thanks');void remote.flush();}
  else if(a==='retry')void remote.flush();
  else if(a==='pause-participation'){
@@ -214,7 +228,7 @@ document.addEventListener('click',e=>{
   go(validScreens.has(store.session.screen)?store.session.screen:'welcome');
  }
  else if(a==='new-person'){
-  if(!terminal()&&store.session.questionnaireVersion===VERSION)store.withdraw(store.session.screen,'새 참여 시작');
+  if(!terminal()&&supported())store.withdraw(store.session.screen,'새 참여 시작');
   startNew();
  }
  else if(a==='preview-restart'&&preview){preview.reset();startNew();}
@@ -237,14 +251,14 @@ document.addEventListener('keydown',e=>{
 });
 window.addEventListener('popstate',e=>{if(!active()||terminal()||store.session.status==='paused'||!validScreens.has(e.state?.screen))return;screen=skipFinishedTask(e.state.screen);if(screen!==e.state.screen)history.replaceState({screen},'',location.href);store.setScreen(screen);render();});
 function connect(){
- remote=preview?preview.createRemote():initRemoteSync(store,{canCapture:()=>ready&&guard.isOwner&&store.session.questionnaireVersion===VERSION});
+ remote=preview?preview.createRemote():initRemoteSync(store,{canCapture:()=>ready&&guard.isOwner&&supported()});
  unsubscribe=remote.subscribe(status);
 }
-function startNew(){
+async function startNew(){
  unsubscribe?.();remote?.dispose();
  if(preview)store=preview.createStore();else store.newSession();
- store.session.questionnaireVersion=VERSION;
- store.session.screen='welcome';
+ store.session.questionnaireVersion=await availableVersion();
+ useVersion();store.session.screen='welcome';
  store.save();
  connect();
  go('welcome');
@@ -256,12 +270,12 @@ async function init(){
   let sameTab=false;try{sameTab=!!sessionStorage.getItem('sajumoaut.active.v1');}catch{}
   store=preview?preview.createStore():createStore();
   if(!store.restored){
-   store.session.questionnaireVersion=VERSION;
+   store.session.questionnaireVersion=await availableVersion();
    store.session.screen='welcome';
    store.save();
   }
-  ready=true;
-  if(store.session.questionnaireVersion!==VERSION)screen='previous-version';
+  useVersion();ready=true;
+  if(!supported())screen='previous-version';
   else if(store.restored&&(!sameTab||newRequested||store.session.status==='paused'))screen='resume';
   else screen=validScreens.has(store.session.screen)?store.session.screen:'welcome';
   connect();
