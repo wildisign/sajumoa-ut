@@ -40,7 +40,7 @@ function finalFeedback(q){
  return study(`${title(q.number+' · 선택 질문',esc(q.title))}<label class="question-prompt" for="feedback">${esc(q.prompt)}</label><textarea id="feedback" data-answer="feedback" maxlength="20000">${esc(store.session.answers.feedback||'')}</textarea><p class="safety">의견이 없으면 바로 제출해 주세요.</p><p class="form-error" id="question-error" role="alert"></p>${action('답변 제출하기','submit')}`,'question-page');
 }
 function questionnaire(q){return study(`${q.reference?reference(q.reference):''}<section class="question-content">${title(q.number+' · 질문',esc(q.title))}<p class="question-prompt">${esc(q.prompt)}</p>${options(q)}${q.reason?`<label class="reason-label" for="reason">${esc(q.reason)} <span>선택</span></label><textarea id="reason" maxlength="20000" data-answer="${q.id}Reason">${esc(store.session.answers[q.id+'Reason']||'')}</textarea>`:''}<p class="form-error" id="question-error" role="alert"></p></section>${action(q.id==='P2'?'다음 상황으로':'다음')}`,'question-page');}
-function reentryHome(){return home().replace('<div class="filter-bar">',`<article class="reconnect-card">${btn('dismiss-card','상담 카드 닫기','card-close',false,icon('close'))}<div class="reconnect-profile"><div class="portrait"></div><div><p>지난 상담 · 5분</p><h2>서가비 선생님</h2></div></div><p>포인트가 부족해 상담이 종료됐어요.</p><div class="reconnect-bottom"><span>1,200P / 30초</span>${btn('reconnect','이어서 상담하기','primary')}</div></article><div class="filter-bar">`);}
+function reentryHome(){return home().replace('<div class="filter-bar">',`<article class="reconnect-card"><span class="card-close" aria-hidden="true" style="display:grid;place-items:center">${icon('close')}</span><div class="reconnect-profile"><div class="portrait"></div><div><p>지난 상담 · 5분</p><h2>서가비 선생님</h2></div></div><p>포인트가 부족해 상담이 종료됐어요.</p><div class="reconnect-bottom"><span>1,200P / 30초</span>${btn('reconnect','이어서 상담하기','primary')}</div></article><div class="filter-bar">`);}
 function reentryModal(){return `${reentryHome()}<div class="modal-backdrop"><section class="consult-modal tobe" role="dialog" aria-modal="true" aria-labelledby="consult-title"><h1 class="modal-title" id="consult-title">상담하기</h1>${btn('close','닫기','modal-close',false,icon('close'))}<div class="consult-profile"><div class="portrait"></div><strong>서가비 선생님</strong></div><div class="balance-row"><div class="balance-copy">보유 포인트<strong>0P</strong></div>${btn('tobe-charge','포인트 충전','pay-entry')}</div><div class="modal-divider"></div><div class="consult-body"><h2>전화 상담</h2><div class="rate-box"><span><strong>1,200P</strong> / 30초</span><small>약 0분 상담 가능</small></div>${btn('tobe-call','전화 상담하기','consult-now')}<div class="postpaid-secondary"><strong>후불 전화 상담</strong><span>1,600원 / 30초</span><p>안내에 따라 상담사 고유번호 223번을 입력해 주세요.</p>${btn('postpaid','후불 전화 상담','consult-postpaid',true)}</div></div></section></div>`;}
 function progressMenuButton(className){
  return btn('menu','테스트 진행 메뉴',className,false,'<span class="progress-menu-dots" aria-hidden="true"></span>');
@@ -77,7 +77,27 @@ function save(){store.save();status();}
 function log(action,label=action){
  if(store.session.questionnaireVersion===VERSION)store.log(screen==='previous-version'?'resume':screen,label||action,{action});
 }
+const questionScreens=['screening',...questions.map(q=>'q-'+q.id)];
+function previousQuestion(){
+ const index=questionScreens.indexOf(screen==='review'?'q-feedback':screen);
+ return index>0?questionScreens[index-1]:null;
+}
+function finishedTask(entry){
+ const s=store.session, first=questionScreens.indexOf(entry);
+ if(s.measurement[entry==='q-A1'?'firstTaskFinished':'reentryTaskFinished'])return true;
+ const reached=id=>id==='review'||questionScreens.indexOf(id)>=first;
+ return reached(screen)||reached(s.screen)||s.events.some(e=>reached(e.screen))||
+  questions.slice(first-1).some(q=>Object.hasOwn(s.answers,q.id));
+}
+function skipFinishedTask(target){
+ if(['start','consult','phone','goal','return','home','payment'].includes(target)&&finishedTask('q-A1'))return 'q-A1';
+ if(['reentry','reentry-home','reentry-modal'].includes(target)&&finishedTask('q-R1'))return 'q-R1';
+ return target;
+}
 function go(next){
+ next=skipFinishedTask(next);
+ if(next==='q-A1')store.session.measurement.firstTaskFinished=true;
+ if(next==='q-R1')store.session.measurement.reentryTaskFinished=true;
  const reference=question()?.reference;
  const preserve=reference&&questions.find(q=>'q-'+q.id===next)?.reference===reference;
  const offset=preserve?scrollY:0;
@@ -119,6 +139,7 @@ function menu(trigger){
  const reentryTask=screen.startsWith('reentry-');
  const reentryReached=screen==='reentry-modal';
  const contextActions=[];
+ if(previousQuestion())contextActions.push(btn('previous-question','이전 질문으로','secondary'));
  if(decisionTask||reentryTask){
   contextActions.push(reentryReached
    ?btn('reentry-done','질문으로 이동','secondary spaced')
@@ -141,7 +162,7 @@ function taskPoint(event){
  return {version:1,...(isDecisionTask()?{layout:'decision'}:{}),view:['consult','return'].includes(screen)?screen+'-asis':screen==='reentry-home'&&!app.querySelector('.reconnect-card')?'reentry-home-dismissed':screen,path:path.join('.'),u:fraction((event.clientX-rect.left)/rect.width),v:fraction((event.clientY-rect.top)/rect.height)};
 }
 document.addEventListener('click',e=>{
- if(!active())return;
+ if(!active()||e.target.closest('.reconnect-card .card-close'))return;
  const b=e.target.closest('button[data-action]');
  const point=taskPoint(e);
  if(!b||b.disabled){
@@ -154,6 +175,7 @@ document.addEventListener('click',e=>{
  if(['return','home'].includes(screen)&&b.closest('.app-shell,.consult-modal'))store.firstAction(b.dataset.label);
  if(b.getAttribute('aria-disabled')==='true')return;
  if(a==='next')next();else if(a==='menu')menu(b);else if(a==='dialog-close')closeDialog();
+ else if(a==='previous-question'&&previousQuestion())go(previousQuestion());
  else if(a==='expand'){
   const expanded=b.getAttribute('aria-expanded')!=='true';
   const label=expanded?'접기':'펼쳐보기';
@@ -174,7 +196,7 @@ document.addEventListener('click',e=>{
  else if(a==='consult-now'&&screen==='consult')go('phone');else if(a==='end-call')go('goal');
  else if(a==='close')go(screen==='reentry-modal'?'reentry-home':'home');
  else if(a==='reconnect'||(a==='reopen'&&screen==='reentry-home')){store.session.measurement.reentryAction=a;save();go('reentry-modal');}
- else if(a==='dismiss-card')app.querySelector('.reconnect-card')?.remove();else if(a==='reopen'){store.returnToModal();go('return');}
+ else if(a==='reopen'){store.returnToModal();go('return');}
  else if(a==='modal-payment'||a==='tab-coins'){if(screen.startsWith('reentry-'))go('q-R1');else{store.arrive(a==='modal-payment'?'modal_payment':'bottom_tab');go('payment');}}
  else if(a==='tab-home')go('home');
  else if(a==='submit'){const missing=questions.find(q=>validateAnswer(q,store.session.answers));if(missing){go('q-'+missing.id);error('제출하기 전에 답변을 확인해 주세요.');return;}store.submit(store.session.answers);go('thanks');void remote.flush();}
@@ -213,7 +235,7 @@ document.addEventListener('keydown',e=>{
  if(e.shiftKey&&(document.activeElement===first||!list.includes(document.activeElement))){e.preventDefault();last?.focus();}
  else if(!e.shiftKey&&(document.activeElement===last||!list.includes(document.activeElement))){e.preventDefault();first?.focus();}
 });
-window.addEventListener('popstate',e=>{if(!active()||terminal()||store.session.status==='paused'||!validScreens.has(e.state?.screen))return;screen=e.state.screen;store.setScreen(screen);render();});
+window.addEventListener('popstate',e=>{if(!active()||terminal()||store.session.status==='paused'||!validScreens.has(e.state?.screen))return;screen=skipFinishedTask(e.state.screen);if(screen!==e.state.screen)history.replaceState({screen},'',location.href);store.setScreen(screen);render();});
 function connect(){
  remote=preview?preview.createRemote():initRemoteSync(store,{canCapture:()=>ready&&guard.isOwner&&store.session.questionnaireVersion===VERSION});
  unsubscribe=remote.subscribe(status);
