@@ -1,10 +1,11 @@
 export const VERSION=6;
-export const factors=[['need','추가 상담이 필요한 정도'],['expected_help','상담에서 얻을 수 있을 것으로 기대하는 도움'],['minimum_amount','한 번에 충전해야 하는 최소 금액'],['available_time','충전한 금액으로 상담할 수 있는 시간'],['benefits','할인·추가 포인트 같은 혜택'],['findability','충전 화면을 찾기 쉬운 정도'],['other','기타 - 직접 입력'],['undecided','아직 판단하기 어려워요']];
+export const factors=[['followup','상담을 이어서 더 물어보고 싶은 내용이 있는지'],['need','추가 상담이 필요한 정도'],['expected_help','상담에서 얻을 수 있을 것으로 기대하는 도움'],['minimum_amount','한 번에 충전해야 하는 최소 금액'],['available_time','충전한 금액으로 상담할 수 있는 시간'],['benefits','할인·추가 포인트 같은 혜택'],['findability','충전 화면을 찾기 쉬운 정도'],['other','기타 - 직접 입력'],['undecided','아직 판단하기 어려워요']];
+export const currentFactors=factors.filter(([id])=>!['need','expected_help','undecided'].includes(id));
 export const previousQuestions=[
  {id:'A1',number:'05-1',title:'포인트 충전 의사',prompt:'과업의 상황과 같이 기본 제공 포인트 소진으로 통화가 끊겼다면 상담을 이어가기 위해 충전을 고려하시겠습니까?',reference:'modal',options:['충전을 고려할 수 있어요','충전을 보류하고 싶어요','아직 판단하기 어려워요']},
  {id:'A2',number:'05-2',title:'충전 여부 결정 이유',prompt:'충전 여부를 결정한 가장 큰 이유는 무엇인가요?',reference:'modal',type:'text',unknown:'설명하기 어려워요'},
  {id:'A3',number:'05-3',title:'포인트와 후불 가격 비교',prompt:'아까 본 화면에서 포인트와 후불 중 어느 쪽이 더 저렴하다고 생각했나요?',options:['포인트가 더 저렴하다고 생각했어요','후불이 더 저렴하다고 생각했어요','가격을 비교하지 않았어요','잘 모르겠어요']},
- {id:'F1',number:'06-1',title:'추가 상담 결정 요소',prompt:'사주모아에서 내 돈으로 추가 상담을 받을지 결정한다면, 중요하게 고려할 요소를 최대 2가지 골라 주세요.',type:'factors'},
+ {id:'F1',number:'06-1',title:'추가 상담 결정 요소',prompt:'사주모아에서 내 돈으로 추가 상담을 받을지 결정한다면, 어떤 점을 중요하게 고려하시겠어요?',type:'factors',optional:true},
  {id:'V1',number:'06-2',title:'가입 혜택의 가치',prompt:'화면에서 안내된 신규 가입 혜택 10,000포인트는 얼마나 가치 있게 느껴지셨나요?',options:['1 매우 낮음','2 낮음','3 보통','4 높음','5 매우 높음']},
  {id:'P1',number:'07-1',title:'실제로 결제될 금액',prompt:'표시된 최소 금액으로 충전한다면, 실제로 결제될 금액은 얼마라고 이해하셨나요?',reference:'payment',type:'text',placeholder:'금액을 입력해 주세요 (원)',unknown:'화면만으로 알기 어려워요'},
  {id:'P2',number:'07-2',title:'최소 결제금액 부담',prompt:'위 화면에서 실제로 결제해야 하는 최소 금액은 얼마나 부담스럽게 느껴지셨나요?',reference:'payment',options:['1 전혀 부담스럽지 않음','2 별로 부담스럽지 않음','3 보통','4 다소 부담스러움','5 매우 부담스러움']},
@@ -40,9 +41,9 @@ export const questions=previousQuestions.flatMap(q=>{
 export const answerKeys=questions.flatMap(q=>[q.id,...(q.reason?[q.id+'Reason']:[])]).concat(['F1Other']);
 export function validateAnswer(q,answers){
  const value=answers[q.id];
- if(q.optional && (value==null || typeof value==='string'))return '';
+ if(q.optional && (value==null || (q.type==='text'&&typeof value==='string')))return '';
  if(q.type==='factors'){
-  if(!Array.isArray(value)||!value.length||value.length>2||new Set(value).size!==value.length||value.some(v=>!factors.some(([id])=>id===v))||(value.includes('undecided')&&value.length!==1))return '중요하게 고려할 요소를 1~2가지 선택해 주세요.';
+  if(!Array.isArray(value)||value.length>2||new Set(value).size!==value.length||value.some(v=>!factors.some(([id])=>id===v))||(value.includes('undecided')&&value.length!==1))return '중요하게 고려할 요소는 최대 2개까지 선택해 주세요.';
   if(value.includes('other')&&!answers.F1Other?.trim())return '기타 내용을 입력해 주세요.';
  }else if(q.options){if(!q.options.includes(value))return '항목을 하나 선택해 주세요.';}
  else if(typeof value!=='string'||!value.trim())return '답변을 입력하거나 아래 항목을 선택해 주세요.';

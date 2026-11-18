@@ -4,7 +4,7 @@ import {initRemoteSync} from './sync.js';
 import {createTabGuard} from './tab-guard.js';
 import {isPreviewMode,createPreviewRuntime} from './preview-mode.js';
 import {esc,btn,icon,home,modal,phone,payment} from './views.js?v=20261118-list';
-import {VERSION,questions as revisedQuestions,previousQuestions,factors,validateAnswer,routePrompts,reentryRoute,participantQuestions} from './protocol.js?v=20261118-difficulty';
+import {VERSION,questions as revisedQuestions,previousQuestions,currentFactors,validateAnswer,routePrompts,reentryRoute,participantQuestions} from './protocol.js?v=20261118-factors';
 import {RESULTS_ORIGIN} from './config.js';
 let questions=revisedQuestions;
 const routeQuestion=()=>questions===previousQuestions?'q-R1':'q-routeThought';
@@ -47,7 +47,7 @@ function reference(key){
 }
 function options(q){const a=store.session.answers;
  if(q.type==='text')return `<label class="screenreader-only" for="answer">${esc(q.prompt)}</label><textarea id="answer" data-answer="${q.id}" maxlength="20000" placeholder="${q.placeholder||'자유롭게 적어 주세요.'}" ${a[q.id]===q.unknown?'disabled':''}>${a[q.id]===q.unknown?'':esc(a[q.id]||'')}</textarea><label class="ut-option"><input type="checkbox" data-unknown="${q.id}" ${a[q.id]===q.unknown?'checked':''}>${q.unknown}</label>`;
- if(q.type==='factors')return `<p class="answer-help">최대 2개까지 선택해 주세요. ‘아직 판단하기 어려워요’는 단독으로 선택해 주세요.</p>${factors.map(([id,l])=>`<label class="ut-option"><input type="checkbox" data-factor="${id}" ${a.F1?.includes(id)?'checked':''}>${l}</label>`).join('')}<div ${a.F1?.includes('other')?'':'hidden'} id="other-field"><label for="other">기타 내용을 적어 주세요.</label><textarea id="other" maxlength="20000" data-answer="F1Other">${esc(a.F1Other||'')}</textarea></div>`;
+ if(q.type==='factors')return `<p class="answer-help">중요한 요소를 최대 2개 골라 주세요. 떠오르는 요소가 없으면 다음으로 넘어가도 돼요.</p>${currentFactors.map(([id,l])=>`<label class="ut-option"><input type="checkbox" data-factor="${id}" ${a.F1?.includes(id)?'checked':''}>${l}</label>`).join('')}<div ${a.F1?.includes('other')?'':'hidden'} id="other-field"><label for="other">기타 내용을 적어 주세요.</label><textarea id="other" maxlength="20000" data-answer="F1Other">${esc(a.F1Other||'')}</textarea></div>`;
  return `<fieldset class="ut-options"><legend class="screenreader-only">${esc(q.prompt)}</legend>${q.options.map(l=>`<label class="ut-option"><input type="radio" name="${q.id}" data-answer="${q.id}" value="${esc(l)}" ${a[q.id]===l?'checked':''}>${esc(l)}</label>`).join('')}</fieldset>`;
 }
 function finalFeedback(q){
@@ -172,7 +172,7 @@ function menu(trigger){
   ${btn('pause-participation','참여 중단하기','secondary spaced')}
   <p class="participation-note">참여를 중단해도 같은 링크를 통해 이어서 진행할 수 있습니다.</p>`,trigger,true);
 }
-function next(){const q=question();if(q){const m=validateAnswer(q,store.session.answers);if(m){error(m);return;}log('question-complete',q.id+' 답변 완료');if(q.id==='P2'){go('reentry');return;}const i=questions.indexOf(q);go(i===questions.length-1?'review':'q-'+questions[i+1].id);return;}const mapping={welcome:'screening',screening:'start',start:'consult',goal:'return',reentry:'reentry-home'};if(screen==='screening'&&(!store.session.screening.interest||!store.session.screening.used)){error('두 질문에 모두 답해 주세요.');return;}if(mapping[screen])go(mapping[screen]);}
+function next(){const q=question();if(q){if(q.type==='factors')store.session.answers.F1=(store.session.answers.F1||[]).filter(id=>currentFactors.some(([key])=>key===id));const m=validateAnswer(q,store.session.answers);if(m){error(m);return;}log('question-complete',q.id+' 답변 완료');if(q.id==='P2'){go('reentry');return;}const i=questions.indexOf(q);go(i===questions.length-1?'review':'q-'+questions[i+1].id);return;}const mapping={welcome:'screening',screening:'start',start:'consult',goal:'return',reentry:'reentry-home'};if(screen==='screening'&&(!store.session.screening.interest||!store.session.screening.used)){error('두 질문에 모두 답해 주세요.');return;}if(mapping[screen])go(mapping[screen]);}
 function taskPoint(event){
  const target=event.target;
  if(!event.detail||dialog||!taskScreens.includes(screen)||target===app||!app.contains(target)||target.closest('.test-controls-bar'))return null;
@@ -245,7 +245,7 @@ document.addEventListener('input',e=>{if(active()&&e.target.matches('textarea[da
 document.addEventListener('change',e=>{if(!active())return;const n=e.target;if(n.dataset.screening){store.session.screening[n.dataset.screening]=n.value;save();return;}
  if(n.dataset.answer&&n.type==='radio'){store.session.answers[n.dataset.answer]=n.value;log('answer-select',n.dataset.answer+': '+n.value);save();}
  if(n.dataset.unknown){const q=question();store.session.answers[q.id]=n.checked?q.unknown:'';save();const y=scrollY;render();scrollTo(0,y);}
- if(n.dataset.factor){let values=Array.isArray(store.session.answers.F1)?[...store.session.answers.F1]:[];if(n.checked){values=n.dataset.factor==='undecided'?['undecided']:[...values.filter(v=>v!=='undecided'),n.dataset.factor];if(values.length>2){n.checked=false;error('최대 2가지까지 선택할 수 있습니다.');return;}}else values=values.filter(v=>v!==n.dataset.factor);store.session.answers.F1=values;if(!values.includes('other'))delete store.session.answers.F1Other;save();const y=scrollY;render();scrollTo(0,y);}});
+ if(n.dataset.factor){let values=Array.isArray(store.session.answers.F1)?store.session.answers.F1.filter(id=>currentFactors.some(([key])=>key===id)):[];if(n.checked){values.push(n.dataset.factor);if(values.length>2){n.checked=false;error('최대 2가지까지 선택할 수 있습니다.');return;}}else values=values.filter(v=>v!==n.dataset.factor);store.session.answers.F1=values;if(!values.includes('other'))delete store.session.answers.F1Other;save();const y=scrollY;render();scrollTo(0,y);}});
 document.addEventListener('keydown',e=>{
  const scope=dialog||app.querySelector('.modal-backdrop > .consult-modal:not([aria-hidden])');
  if(!scope||(!dialog&&question()))return;
