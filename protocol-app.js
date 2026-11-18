@@ -1,4 +1,4 @@
-import {reentryHome} from './reentry-home.js';
+import {reentryHome} from './reentry-home.js?v=scroll-limit';
 import {createStore} from './store.js';
 import {initRemoteSync} from './sync.js';
 import {createTabGuard} from './tab-guard.js';
@@ -40,7 +40,7 @@ const referenceAlts={
 };
 const referenceImage=key=>`<img class="reference-shot" src="./assets/ref-${key==='modal'?'list-modal':key}.webp" alt="${referenceAlts[key]}">`;
 function reference(key){
- if(key==='reentry')return '<figure class="payment-reference"><img class="reference-shot" src="./assets/ref-figma-reentry.webp" alt="과업에서 본 재진입 홈 화면"></figure>';
+ if(key==='reentry')return '<figure class="payment-reference"><img class="reference-shot" src="./assets/ref-limited-reentry.webp" alt="과업에서 본 재진입 홈 화면"></figure>';
  if(key==='compare')return `<div class="compare-reference">${['a','b'].map(id=>`<h2 class="compare-tag">화면 ${id.toUpperCase()} - ${id==='a'?'VAT별도':'VAT포함'}</h2><div class="compare-panel">${referenceImage(id)}</div>`).join('')}</div>`;
  if(key==='payment')return `<figure class="payment-reference"><button type="button" class="inline-reference" data-action="expand" data-label="펼쳐보기" aria-label="포인트 충전 화면 펼쳐보기" aria-expanded="false" aria-describedby="payment-description"><span class="shot-top"><img class="reference-shot" src="./assets/ref-payment-top.webp" width="780" height="1650" alt=""></span><span class="shot-rest" hidden aria-hidden="true"><img class="reference-shot" src="./assets/ref-payment-rest.webp" width="780" height="1392" alt=""></span><span class="shot-toggle">펼쳐보기</span></button><figcaption class="screenreader-only" id="payment-description">${referenceAlts.payment}</figcaption></figure>`;
  return `<figure class="reference-box ${key}"><div class="reference-window">${referenceImage(key)}</div>${key==='payment'?btn('expand','펼쳐보기','expand-button'):''}</figure>`;
@@ -181,7 +181,7 @@ function taskPoint(event){
  const path=[];
  for(let node=target;node!==app;node=node.parentElement)path.unshift(Array.prototype.indexOf.call(node.parentElement.children,node));
  const fraction=n=>Math.round(Math.max(0,Math.min(1,n))*10000)/10000;
- return {version:1,...(isDecisionTask()?{layout:'decision'}:{}),view:screen.startsWith('reentry-')?screen+'-figma':['consult','return','home'].includes(screen)?screen+'-list':screen,path:path.join('.'),u:fraction((event.clientX-rect.left)/rect.width),v:fraction((event.clientY-rect.top)/rect.height)};
+ return {version:1,...(isDecisionTask()?{layout:'decision'}:{}),view:screen.startsWith('reentry-')?screen+'-limited':['consult','return','home'].includes(screen)?screen+'-list':screen,path:path.join('.'),u:fraction((event.clientX-rect.left)/rect.width),v:fraction((event.clientY-rect.top)/rect.height)};
 }
 document.addEventListener('click',e=>{
  if(!active()||e.target.closest('.reconnect-card .card-close'))return;

@@ -169,6 +169,6 @@ export function reentryHome(){
             </button>
           </div>
         </div>
-      </div><div class="reentry-more-advisor"><button type="button" data-action="reopen" data-label="서가비 상담하기" aria-label="서가비 상담하기"></button></div></div></div><nav class="bottom-nav figma-tabs" aria-label="앱 하단 메뉴">${nav}</nav></div>`;
+      </div></div></div><nav class="bottom-nav figma-tabs" aria-label="앱 하단 메뉴">${nav}</nav></div>`;
 }
 
