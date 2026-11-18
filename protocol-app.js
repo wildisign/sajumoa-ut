@@ -2,7 +2,7 @@ import {createStore} from './store.js';
 import {initRemoteSync} from './sync.js';
 import {createTabGuard} from './tab-guard.js';
 import {isPreviewMode,createPreviewRuntime} from './preview-mode.js';
-import {esc,btn,icon,home,modal,phone,payment} from './views.js';
+import {esc,btn,icon,home,modal,phone,payment} from './views.js?v=20261118-asis';
 import {VERSION,questions,factors,validateAnswer} from './protocol.js?v=20261118-feedback';
 const app=document.querySelector('#app'),warning=document.querySelector('#storage-warning');
 const previewMode=isPreviewMode(location.search),preview=previewMode?createPreviewRuntime():null,guard=preview?.guard||createTabGuard();
@@ -138,7 +138,7 @@ function taskPoint(event){
  const path=[];
  for(let node=target;node!==app;node=node.parentElement)path.unshift(Array.prototype.indexOf.call(node.parentElement.children,node));
  const fraction=n=>Math.round(Math.max(0,Math.min(1,n))*10000)/10000;
- return {version:1,view:screen==='reentry-home'&&!app.querySelector('.reconnect-card')?'reentry-home-dismissed':screen,path:path.join('.'),u:fraction((event.clientX-rect.left)/rect.width),v:fraction((event.clientY-rect.top)/rect.height)};
+ return {version:1,view:['consult','return'].includes(screen)?screen+'-asis':screen==='reentry-home'&&!app.querySelector('.reconnect-card')?'reentry-home-dismissed':screen,path:path.join('.'),u:fraction((event.clientX-rect.left)/rect.width),v:fraction((event.clientY-rect.top)/rect.height)};
 }
 document.addEventListener('click',e=>{
  if(!active())return;

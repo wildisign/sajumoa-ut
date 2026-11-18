@@ -93,3 +93,6 @@
 .coin{line-height:1;letter-spacing:0;font-family:Arial,sans-serif;grid-template: minmax(0,1fr) / minmax(0,1fr)}
 .consult-modal .balance-row .coin{font-size:15px}
 .consult-modal .rate-box .coin{font-size:12px}
+
+.as-is .consult-postpaid[aria-disabled=true]{background:#fff;border:1px solid #888;color:#808080;font-weight:400}
+.as-is .consult-now,.as-is .pay-entry{font-weight:400}
