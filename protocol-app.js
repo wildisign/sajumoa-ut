@@ -4,7 +4,7 @@ import {initRemoteSync} from './sync.js';
 import {createTabGuard} from './tab-guard.js';
 import {isPreviewMode,createPreviewRuntime} from './preview-mode.js';
 import {esc,btn,icon,home,modal,phone,payment} from './views.js?v=20261118-list';
-import {VERSION,questions as revisedQuestions,previousQuestions,factors,validateAnswer,routePrompts,reentryRoute} from './protocol.js?v=20261118-routes';
+import {VERSION,questions as revisedQuestions,previousQuestions,factors,validateAnswer,routePrompts,reentryRoute,participantQuestions} from './protocol.js?v=20261118-difficulty';
 import {RESULTS_ORIGIN} from './config.js';
 let questions=revisedQuestions;
 const routeQuestion=()=>questions===previousQuestions?'q-R1':'q-routeThought';
@@ -41,7 +41,7 @@ const referenceAlts={
 const referenceImage=key=>`<img class="reference-shot" src="./assets/ref-${key==='modal'?'list-modal':key}.webp" alt="${referenceAlts[key]}">`;
 function reference(key){
  if(key==='reentry')return '<figure class="payment-reference"><img class="reference-shot" src="./assets/ref-figma-reentry.webp" alt="과업에서 본 재진입 홈 화면"></figure>';
- if(key==='compare')return `<div class="compare-reference">${['a','b'].map(id=>`<h2>화면 ${id.toUpperCase()}</h2><div class="compare-panel">${referenceImage(id)}</div>`).join('')}</div>`;
+ if(key==='compare')return `<div class="compare-reference">${['a','b'].map(id=>`<h2 class="compare-tag">화면 ${id.toUpperCase()} - ${id==='a'?'VAT별도':'VAT포함'}</h2><div class="compare-panel">${referenceImage(id)}</div>`).join('')}</div>`;
  if(key==='payment')return `<figure class="payment-reference"><button type="button" class="inline-reference" data-action="expand" data-label="펼쳐보기" aria-label="포인트 충전 화면 펼쳐보기" aria-expanded="false" aria-describedby="payment-description"><span class="shot-top"><img class="reference-shot" src="./assets/ref-payment-top.webp" width="780" height="1650" alt=""></span><span class="shot-rest" hidden aria-hidden="true"><img class="reference-shot" src="./assets/ref-payment-rest.webp" width="780" height="1392" alt=""></span><span class="shot-toggle">펼쳐보기</span></button><figcaption class="screenreader-only" id="payment-description">${referenceAlts.payment}</figcaption></figure>`;
  return `<figure class="reference-box ${key}"><div class="reference-window">${referenceImage(key)}</div>${key==='payment'?btn('expand','펼쳐보기','expand-button'):''}</figure>`;
 }
@@ -91,7 +91,7 @@ function log(action,label=action){
  if(supported())store.log(screen==='previous-version'?'resume':screen,label||action,{action});
 }
 let questionScreens;
-function useVersion(){questions=store.session.questionnaireVersion===5?previousQuestions:revisedQuestions;questionScreens=['screening',...questions.map(q=>'q-'+q.id)];}
+function useVersion(){questions=participantQuestions(store.session);questionScreens=['screening',...questions.map(q=>'q-'+q.id)];}
 function previousQuestion(){
  const index=questionScreens.indexOf(screen==='review'?'q-feedback':screen);
  return index>0?questionScreens[index-1]:null;
@@ -104,11 +104,13 @@ function finishedTask(entry){
   questions.slice(first-1).some(q=>Object.hasOwn(s.answers,q.id));
 }
 function skipFinishedTask(target){
+ if(target==='q-findDifficulty'&&!questionScreens.includes(target))return 'q-C1';
  if(['start','consult','phone','goal','return','home','payment'].includes(target)&&finishedTask('q-A1'))return 'q-A1';
  if(['reentry','reentry-home','reentry-modal'].includes(target)&&finishedTask(routeQuestion()))return routeQuestion();
  return target;
 }
 function go(next){
+ useVersion();
  next=skipFinishedTask(next);
  if(next==='q-A1')store.session.measurement.firstTaskFinished=true;
  if(next===routeQuestion())store.session.measurement.reentryTaskFinished=true;
@@ -283,7 +285,7 @@ async function init(){
   useVersion();ready=true;
   if(!supported())screen='previous-version';
   else if(store.restored&&(!sameTab||newRequested||store.session.status==='paused'))screen='resume';
-  else screen=validScreens.has(store.session.screen)?store.session.screen:'welcome';
+  else screen=validScreens.has(store.session.screen)?skipFinishedTask(store.session.screen):'welcome';
   connect();
   render();
   history.replaceState({screen},'',location.pathname+location.search);

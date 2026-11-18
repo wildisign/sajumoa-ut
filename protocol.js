@@ -25,11 +25,16 @@ export function reentryRoute(s){
  if(route==='reconnect'||route==='reopen')return route;
  return s.measurement?.reentryHelpRequested?'help':'other';
 }
+export function participantQuestions(s){
+ if(s.questionnaireVersion===5)return previousQuestions;
+ const selected=['reconnect','reopen'].includes(reentryRoute(s));
+ return selected?questions:questions.filter(q=>q.id!=='findDifficulty');
+}
 export const notFound='찾지 못했어요';
 export const questions=previousQuestions.flatMap(q=>{
  if(q.id==='R1')return [{id:'routeThought',number:'09-1',title:'재상담 화면에서의 선택',prompt:'재상담 경로별 응답',reference:'reentry',type:'text',unknown:'잘 모르겠어요'}];
  if(q.id==='R2')return [];
- if(q.id==='R3')return [{id:'findDifficulty',number:'09-2',title:'재상담 방법 찾기',prompt:'홈에서 서가비 선생님과 다시 상담할 방법을 찾는 과정은 어땠나요?',options:['매우 어려웠어요','다소 어려웠어요','보통이었어요','다소 쉬웠어요','매우 쉬웠어요',notFound]}];
+ if(q.id==='R3')return [{id:'findDifficulty',number:'09-2',title:'재상담 방법 찾기',prompt:'홈에서 서가비 선생님과 다시 상담할 방법을 찾는 과정은 어땠나요?',options:['매우 어려웠어요','다소 어려웠어요','보통이었어요','다소 쉬웠어요','매우 쉬웠어요']}];
  return [q];
 });
 export const answerKeys=questions.flatMap(q=>[q.id,...(q.reason?[q.id+'Reason']:[])]).concat(['F1Other']);
