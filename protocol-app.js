@@ -39,9 +39,66 @@ const referenceAlts={
  b:'화면 B. 포인트 30,000 옆에 부가세 포함 33,000원, 하단에 상품 금액 30,000원과 부가가치세 3,000원, 총 결제금액 33,000원.'
 };
 const referenceImage=key=>`<img class="reference-shot" src="./assets/ref-${key==='modal'?'list-modal':key}.webp" alt="${referenceAlts[key]}">`;
+function compareImage(key,height){
+ const label='화면 '+key.toUpperCase();
+ return `<h2 class="compare-tag">${label} - ${key==='a'?'VAT별도':'VAT포함'}</h2>
+ <div class="compare-panel" data-compare-image="${key}" style="aspect-ratio:776/${height}">
+  <img class="reference-shot" alt="${referenceAlts[key]}" width="776" height="${height}" tabindex="-1" hidden>
+  <div class="compare-image-message">
+   <p role="status">이미지를 불러오는 중이에요.</p>
+   <button type="button" class="compare-image-retry" aria-label="${label} 이미지 다시 불러오기" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 4v5h-5M20 9a8 8 0 1 0-1 8"/></svg>
+   </button>
+  </div>
+ </div>`;
+}
+function setupCompareImages(){
+ for(const panel of app.querySelectorAll('[data-compare-image]')){
+  const key=panel.dataset.compareImage;
+  const message=panel.querySelector('.compare-image-message');
+  const statusText=message.querySelector('[role="status"]');
+  const retry=message.querySelector('button');
+  let attempting=false;
+
+  function loadImage(isRetry){
+   if(attempting)return;
+   attempting=true;
+   panel.setAttribute('aria-busy','true');
+   retry.setAttribute('aria-disabled','true');
+   statusText.textContent='이미지를 불러오는 중이에요.';
+   const previous=panel.querySelector('img');
+   const image=previous.cloneNode();
+   previous.replaceWith(image);
+
+   function finish(loaded){
+    clearTimeout(timeout);
+    image.onload=image.onerror=null;
+    attempting=false;
+    if(!loaded)image.removeAttribute('src');
+    if(!panel.isConnected)return;
+    panel.removeAttribute('aria-busy');
+    retry.removeAttribute('aria-disabled');
+    if(loaded){
+     image.hidden=false;
+     if(document.activeElement===retry)image.focus({preventScroll:true});
+     message.hidden=true;
+    }else{
+     statusText.textContent='이미지를 불러오지 못했어요.';
+     retry.hidden=false;
+    }
+   }
+   const timeout=setTimeout(()=>finish(false),12000);
+   image.onload=()=>finish(image.naturalWidth>0);
+   image.onerror=()=>finish(false);
+   image.src='./assets/ref-'+key+'.webp'+(isRetry?'?retry='+Date.now():'');
+  }
+  retry.addEventListener('click',()=>loadImage(true));
+  loadImage(false);
+ }
+}
 function reference(key){
  if(key==='reentry')return '<figure class="payment-reference"><img class="reference-shot" src="./assets/ref-limited-reentry.webp" alt="과업에서 본 재진입 홈 화면"></figure>';
- if(key==='compare')return `<div class="compare-reference">${['a','b'].map(id=>`<h2 class="compare-tag">화면 ${id.toUpperCase()} - ${id==='a'?'VAT별도':'VAT포함'}</h2><div class="compare-panel">${referenceImage(id)}</div>`).join('')}</div>`;
+ if(key==='compare')return `<div class="compare-reference">${compareImage('a',1428)}${compareImage('b',1516)}</div>`;
  if(key==='payment')return `<figure class="payment-reference"><button type="button" class="inline-reference" data-action="expand" data-label="펼쳐보기" aria-label="포인트 충전 화면 펼쳐보기" aria-expanded="false" aria-describedby="payment-description"><span class="shot-top"><img class="reference-shot" src="./assets/ref-payment-top.webp" width="780" height="1650" alt=""></span><span class="shot-rest" hidden aria-hidden="true"><img class="reference-shot" src="./assets/ref-payment-rest.webp" width="780" height="1392" alt=""></span><span class="shot-toggle">펼쳐보기</span></button><figcaption class="screenreader-only" id="payment-description">${referenceAlts.payment}</figcaption></figure>`;
  return `<figure class="reference-box ${key}"><div class="reference-window">${referenceImage(key)}</div>${key==='payment'?btn('expand','펼쳐보기','expand-button'):''}</figure>`;
 }
@@ -95,6 +152,7 @@ function render(){closeDialog(false);clearTimeout(timer);document.body.classList
  else if(!['welcome','thanks','withdrawn','paused','resume','previous-version'].includes(screen))app.querySelector('.study-head-actions')?.insertAdjacentHTML('beforeend',progressMenuButton('study-menu'));
  if(['consult','return','reentry-modal'].includes(screen)){const bg=app.querySelector('.app-shell');bg.inert=true;bg.setAttribute('aria-hidden','true');}
  if(screen==='payment')schedulePaymentPrompt();
+ if(q?.reference==='compare')setupCompareImages();
  app.focus({preventScroll:true});status();updateFooterFade();}
 function save(){store.save();status();}
 function log(action,label=action){
