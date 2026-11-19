@@ -85,7 +85,7 @@ function render(){closeDialog(false);clearTimeout(timer);document.body.classList
  case 'reentry-home':app.innerHTML=reentryHome();break;
  case 'reentry-modal':app.innerHTML=reentryModal();break;
  case 'review':app.innerHTML=finalFeedback(questions.find(item=>item.id==='feedback'));break;
- case 'thanks':app.innerHTML=study(`<h1 id="completion-title" aria-live="polite">답변을 저장하고 있습니다.</h1><p id="save-status" role="status" aria-live="polite"></p><p id="save-detail" class="muted"></p>${btn('retry','저장 다시 시도','secondary')}<footer class="completion-actions" hidden>${btn('followup','후속 참여 희망','primary')}${btn('share-study','테스트 공유','secondary')}<span class="completion-message" role="status"></span></footer>`,'thanks-page');break;
+ case 'thanks':app.innerHTML=study(`<h1 id="completion-title" aria-live="polite">답변을 저장하고 있습니다.</h1><p id="save-status" role="status" aria-live="polite"></p><p id="save-detail" class="muted"></p>${btn('retry','저장 다시 시도','secondary')}<details id="save-diagnostics" hidden><summary>저장 오류 기록 보기</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere"></pre></details><footer class="completion-actions" hidden>${btn('followup','후속 참여 희망','primary')}${btn('share-study','테스트 공유','secondary')}<span class="completion-message" role="status"></span></footer>`,'thanks-page');break;
  case 'resume':app.innerHTML=study(`${title('진행 기록','이어서 진행할까요?')}<p>이 브라우저에 이전 진행 화면과 답변이 저장되어 있습니다.</p>${action('이어서 하기','resume')}${btn('new-person','새 참여 시작','secondary spaced')}`);break;
  case 'paused':app.innerHTML=study(`<h1>참여를 중단했습니다.</h1><p>${previewMode?'이 창에서 이어서 진행할 수 있습니다.':'지금 보고 있는 개인 링크로 다시 열면 이어서 진행할 수 있습니다.'}</p>${action('이어서 하기','resume')}`);break;
  case 'previous-version':app.innerHTML=study(`${title('진행 기록','테스트가 업데이트됐어요')}<p>새 질문에 답하려면 처음부터 시작해 주세요.</p>${action('새 참여 시작','new-person')}`);break;
@@ -149,7 +149,20 @@ function status(){
  const complete=previewMode||s.state==='saved';
  const failed=s.state==='error';
  heading.textContent=complete?'참여해 주셔서 감사합니다.':failed?'답변을 아직 전송하지 못했습니다.':'답변을 저장하고 있습니다.';
- document.querySelector('#save-detail').textContent=previewMode?'미리보기 답변은 저장·전송되지 않습니다.':complete?'':failed?'인터넷 연결을 확인하고 다시 시도해 주세요.':'저장 완료까지 이 창을 유지해 주세요.';
+ const diagnostics=s.diagnostics||[];
+ const last=diagnostics.at(-1);
+ const messages={
+  TIMEOUT:'저장 확인에 12초 이상 걸렸습니다.',
+  'NO-RESPONSE':'이 브라우저가 저장 서버의 응답을 받지 못했습니다.',
+  'HTTP-400':'서버가 답변 또는 진행 기록의 형식을 확인하지 못했습니다.',
+  'HTTP-413':'전송할 기록이 저장 용량 제한을 넘었습니다.',
+  'INVALID-ACK':'서버 응답에서 이번 답변의 저장 완료를 확인하지 못했습니다.'
+ };
+ const panel=document.querySelector('#save-diagnostics');
+ panel.hidden=!failed||!last;
+ if(failed&&last)panel.querySelector('pre').textContent=diagnostics.map(row=>JSON.stringify(row)).join('\n');
+ const why=messages[last?.code]||(last?.http>=500?'저장 서버에서 요청을 처리하지 못했습니다.':'저장 요청이 완료되지 않았습니다.');
+ document.querySelector('#save-detail').textContent=previewMode?'미리보기 답변은 저장·전송되지 않습니다.':complete?'':failed?why+' 이 창에서 저장을 다시 시도해 주세요. 반복되면 오류 기록을 진행자에게 알려 주세요.':'저장 완료까지 이 창을 유지해 주세요.';
  document.querySelector('[data-action="retry"]').hidden=!failed;
  document.querySelector('.completion-actions').hidden=!complete;
 }

@@ -76,6 +76,30 @@ export function initRemoteSync(store, options = {}) {
   let activeConflict = false;
   const errors = new Map();
   const inFlight = new Set();
+  const diagnosticKey = 'sajumoaut.save-diagnostics.v1';
+  let recentFailures = [];
+  try {
+    const saved = JSON.parse(storage.getItem(diagnosticKey) || '[]');
+    if (Array.isArray(saved)) recentFailures = saved.slice(-20);
+  } catch { /* Diagnostics also work for this visit without storage. */ }
+  function recordFailure(id, code, response, sent, bytes, started, reason) {
+    const item = {
+      at: new Date().toISOString(), participant: id.slice(0, 8), code,
+      http: response?.status ?? null, revision: sent.revision, acknowledged: sent.acknowledged,
+      elapsedMs: Date.now() - started, bytes, localBackup: backup,
+      onlineHint: globalThis.navigator?.onLine ?? null,
+    };
+    // Server validation messages can identify a rule. Never retain arbitrary response text.
+    if (code === 'HTTP-400' && typeof reason === 'string') {
+      const question = /^(\d{2}(?:-\d+)?) /.exec(reason);
+      if (question) item.question = question[1];
+      let hash = 2166136261;
+      for (const char of reason) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+      item.rule = (hash >>> 0).toString(16);
+    }
+    recentFailures = [...recentFailures, item].slice(-20);
+    try { storage.setItem(diagnosticKey, JSON.stringify(recentFailures)); } catch { /* Keep in memory. */ }
+  }
 
   function readQueue() {
     const parsed = JSON.parse(storage.getItem(SYNC_KEY) || '{}');
@@ -131,6 +155,7 @@ export function initRemoteSync(store, options = {}) {
     const error = errors.get(activeId) || (conflict ? active?.conflictReason || '다른 화면에서 이 참여 기록이 변경되었습니다. 새로고침 후 확인해 주세요.' : null);
     return {
       state: conflict ? 'conflict' : error ? 'error' : activePending ? 'saving' : 'saved',
+      diagnostics: recentFailures.filter(item => item?.participant === activeId.slice(0, 8)),
       conflict,
       pending: activePending,
       pendingCount: allPending,
@@ -178,12 +203,13 @@ export function initRemoteSync(store, options = {}) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 12000);
     inFlight.add(id); notify();
+    const started = Date.now();
+    let response, reply;
     try {
-      const response = await fetcher(origin + '/api/sessions', {
+      response = await fetcher(origin + '/api/sessions', {
         method: 'POST', mode: 'cors', credentials: 'omit', headers: { 'Content-Type': 'application/json' },
         body, signal: controller.signal, keepalive: bytes < 55000,
       });
-      let reply;
       try { reply = await response.json(); } catch { reply = null; }
       refresh();
       const current = entries[id];
@@ -193,6 +219,7 @@ export function initRemoteSync(store, options = {}) {
       }
       if (response.status === 409 || (response.ok && Number.isInteger(reply?.revision) && reply.revision > sent.revision)) {
         // Do not "rebase" stale form contents above a newer server revision.
+        recordFailure(id, 'CONFLICT', response, sent, bytes, started);
         current.blocked = true;
         current.conflictReason = '다른 화면에서 이 참여 기록이 변경되었거나 이미 종료되었습니다. 이 화면의 이전 내용으로 덮어쓰지 않았습니다.';
         if (id === activeId) activeConflict = true;
@@ -203,6 +230,9 @@ export function initRemoteSync(store, options = {}) {
       persist(id); errors.delete(id);
       return true;
     } catch (error) {
+      const code = controller.signal.aborted ? 'TIMEOUT' : !response ? 'NO-RESPONSE'
+        : !response.ok ? 'HTTP-' + response.status : 'INVALID-ACK';
+      recordFailure(id, code, response, sent, bytes, started, reply?.error);
       errors.set(id, error.message || '연결을 확인해 주세요.');
       return false;
     } finally { clearTimeout(timeout); inFlight.delete(id); notify(); }
