@@ -1,6 +1,6 @@
 import {reentryHome} from './reentry-home.js?v=scroll-limit';
 import {createStore} from './store.js';
-import {initRemoteSync} from './sync.js';
+import {initRemoteSync,restorePersonalLink} from './sync.js';
 import {createTabGuard} from './tab-guard.js';
 import {isPreviewMode,createPreviewRuntime} from './preview-mode.js';
 import {esc,btn,icon,home,modal,phone,payment} from './views.js?v=20261118-list';
@@ -21,7 +21,7 @@ const app=document.querySelector('#app'),warning=document.querySelector('#storag
 const previewMode=isPreviewMode(location.search),preview=previewMode?createPreviewRuntime():null,guard=preview?.guard||createTabGuard();
 const query=new URLSearchParams(location.search),newRequested=query.has('new');
 query.delete('new');
-history.replaceState(null,'',location.pathname+(query.size?'?'+query:''));
+history.replaceState(null,'',location.pathname+(query.size?'?'+query:'')+location.hash);
 let store,remote,unsubscribe,screen='welcome',timer,dialog,returnFocus,ready=false,initializing=false;
 const taskScreens=['consult','phone','return','home','payment','reentry-home','reentry-modal'];
 const validScreens=new Set(['welcome','screening','start','consult','phone','goal','return','home','payment','reentry','reentry-home','reentry-modal','review','thanks','withdrawn',...[...previousQuestions,...revisedQuestions].map(q=>'q-'+q.id)]);
@@ -72,7 +72,7 @@ window.addEventListener('resize',updateFooterFade);
 new ResizeObserver(updateFooterFade).observe(app);
 function render(){closeDialog(false);clearTimeout(timer);document.body.classList.toggle('has-test-controls',taskScreens.includes(screen));
  const q=question();if(q)app.innerHTML=q.id==='feedback'?finalFeedback(q):questionnaire(q);else switch(screen){
- case 'welcome':app.innerHTML=study(`${title('01 · 안내','참여 안내')}<p>사주모아에서 상담이 끝난 뒤의 화면을 살펴보는 테스트입니다.</p><div class="intro-section"><h2>실제 전화·결제는 진행되지 않아요</h2><p>화면의 버튼을 눌러도 실제로 전화가 연결되거나 결제되지 않습니다.</p></div><div class="intro-section"><h2>평소처럼 답해 주세요</h2><p>정답은 없습니다. 평소라면 어떻게 할지 답해 주세요. 모르는 내용은 모른다고 답하셔도 됩니다.</p></div><div class="intro-section"><h2>${previewMode?'미리보기 답변은 저장되지 않아요':'답변은 익명으로 저장돼요'}</h2><p>${previewMode?'입력 내용은 이 창에서만 유지되며 전송되지 않습니다.':'선택과 작성한 답변은 익명 참여번호와 함께 저장됩니다.'}</p></div>${previewMode?'':'<p class="safety">이 기기에서 지금 쓰는 브라우저로 링크를 다시 열면 이어서 할 수 있습니다. 다른 브라우저로 열면 새로 시작합니다.</p>'}${action('안내를 확인했어요')}`);break;
+ case 'welcome':app.innerHTML=study(`${title('01 · 안내','참여 안내')}<p>사주모아에서 상담이 끝난 뒤의 화면을 살펴보는 테스트입니다.</p><div class="intro-section"><h2>실제 전화·결제는 진행되지 않아요</h2><p>화면의 버튼을 눌러도 실제로 전화가 연결되거나 결제되지 않습니다.</p></div><div class="intro-section"><h2>평소처럼 답해 주세요</h2><p>정답은 없습니다. 평소라면 어떻게 할지 답해 주세요. 모르는 내용은 모른다고 답하셔도 됩니다.</p></div><div class="intro-section"><h2>${previewMode?'미리보기 답변은 저장되지 않아요':'답변은 익명으로 저장돼요'}</h2><p>${previewMode?'입력 내용은 이 창에서만 유지되며 전송되지 않습니다.':'선택과 작성한 답변은 익명 참여번호와 함께 저장됩니다.'}</p></div>${previewMode?'':'<p class="safety">다른 브라우저에서 계속하려면 테스트 진행 메뉴에서 ‘내 참여 이어하기 링크’를 복사해 열어 주세요.</p>'}${action('안내를 확인했어요')}`);break;
  case 'screening':app.innerHTML=study(`${title('02 · 질문','시작 전 질문')}${[['interest','운세 상담에 관심이 있나요?',['관심 있어요','별로 관심 없어요']],['used','사주모아를 써본 적이 있나요?',['써본 적 있어요','써본 적 없어요']]].map(([key,prompt,opts])=>`<fieldset class="screening-group"><legend>${prompt}</legend>${opts.map(l=>`<label class="ut-option"><input type="radio" name="${key}" data-screening="${key}" value="${l}" ${store.session.screening[key]===l?'checked':''}>${l}</label>`).join('')}</fieldset>`).join('')}<p id="question-error" class="form-error" role="alert"></p>${action()}`);break;
  case 'start':app.innerHTML=scenario('03-1 · 상담 체험','서가비 선생님과<br>상담하려고 합니다','사주모아에 가입해 혜택으로 받은<br>10,000포인트를 보유하고 있습니다.','다음 화면에서 서가비 선생님과 상담을 시작해 주세요.','시작하기');break;
  case 'consult':app.innerHTML=modal(false);break;
@@ -87,7 +87,7 @@ function render(){closeDialog(false);clearTimeout(timer);document.body.classList
  case 'review':app.innerHTML=finalFeedback(questions.find(item=>item.id==='feedback'));break;
  case 'thanks':app.innerHTML=study(`<h1 id="completion-title" aria-live="polite">답변을 저장하고 있습니다.</h1><p id="save-status" role="status" aria-live="polite"></p><p id="save-detail" class="muted"></p>${btn('retry','저장 다시 시도','secondary')}`,'thanks-page');break;
  case 'resume':app.innerHTML=study(`${title('진행 기록','이어서 진행할까요?')}<p>이 브라우저에 이전 진행 화면과 답변이 저장되어 있습니다.</p>${action('이어서 하기','resume')}${btn('new-person','새 참여 시작','secondary spaced')}`);break;
- case 'paused':app.innerHTML=study(`<h1>참여를 중단했습니다.</h1><p>${previewMode?'이 창에서 이어서 진행할 수 있습니다.':'같은 기기와 브라우저에서 테스트 링크를 다시 열면 이어서 진행할 수 있습니다.'}</p>${action('이어서 하기','resume')}`);break;
+ case 'paused':app.innerHTML=study(`<h1>참여를 중단했습니다.</h1><p>${previewMode?'이 창에서 이어서 진행할 수 있습니다.':'지금 보고 있는 개인 링크로 다시 열면 이어서 진행할 수 있습니다.'}</p>${action('이어서 하기','resume')}`);break;
  case 'previous-version':app.innerHTML=study(`${title('진행 기록','테스트가 업데이트됐어요')}<p>새 질문에 답하려면 처음부터 시작해 주세요.</p>${action('새 참여 시작','new-person')}`);break;
  case 'withdrawn':app.innerHTML=study('<h1>참여해 주셔서 감사합니다.</h1><p>참여를 종료했습니다.</p>');break;
  default:app.innerHTML=study('<h1>진행 상태를 확인해 주세요.</h1>');}
@@ -131,7 +131,7 @@ function go(next){
  const sameList=listForModal[next]===screen||listForModal[screen]===next;
  const offset=preserve||sameList?scrollY:0;
  screen=next;store.setScreen(next);
- history.pushState({screen},'',location.pathname+location.search);
+ history.pushState({screen},'',location.href);
  render();
  window.scrollTo(0,offset);
 }
@@ -141,7 +141,7 @@ function status(){
  const s=remote.status;
  warning.hidden=previewMode||(!store.error&&!s.queueError);
  warning.textContent='임시 저장을 완료하지 못했습니다. 제출 후 저장 상태를 확인해 주세요.';
- if(s.state==='conflict'){ready=false;closeDialog(false);clearTimeout(timer);app.innerHTML=study('<h1>다른 창의 기록을 확인해 주세요.</h1><p>최근 기록을 보호하기 위해 이 창의 작성을 멈췄습니다.</p>');return;}
+ if(s.state==='conflict'){ready=false;closeDialog(false);clearTimeout(timer);app.innerHTML=study('<h1>다른 창의 기록을 확인해 주세요.</h1><p>다른 브라우저에서 기록이 바뀌었습니다. 이 페이지를 새로고침하면 마지막으로 저장한 화면을 열 수 있습니다.</p>');return;}
  const heading=document.querySelector('#completion-title');
  if(!heading)return;
  const complete=previewMode||s.state==='saved';
@@ -180,8 +180,18 @@ function menu(trigger){
    :btn('help','다음 행동을 모르겠어요','secondary spaced'));
  }
  openDialog(`<div class="progress-menu-heading"><h2>테스트 진행</h2>${btn('dialog-close','테스트 진행 메뉴 닫기','progress-menu-close',false,'<span aria-hidden="true">×</span>')}</div>${contextActions.join('')}
+  ${previewMode?'':btn('copy-resume','내 참여 이어하기 링크 복사','secondary spaced')}
   ${btn('pause-participation','참여 중단하기','secondary spaced')}
-  ${previewMode?'':'<p class="participation-note">이 기기에서 지금 쓰는 브라우저로 링크를 다시 열면 이어서 할 수 있습니다.</p>'}`,trigger,true);
+  ${previewMode?'':'<p class="participation-note">개인 링크를 열면 다른 브라우저에서도 내 답변을 이어갈 수 있습니다. 본인만 사용해 주세요.</p>'}`,trigger,true);
+}
+async function copyResumeLink(button){
+ button.disabled=true;
+ const saved=await remote.flush();
+ if(saved.state!=='saved'){button.disabled=false;button.textContent='저장 후 다시 복사';return;}
+ const link=location.origin+location.pathname+remote.linkFragment;
+ try{await navigator.clipboard.writeText(link);button.textContent='링크를 복사했어요';}
+ catch{const field=document.createElement('input');field.readOnly=true;field.value=link;field.setAttribute('aria-label','내 참여 이어하기 링크');button.after(field);field.select();}
+ button.disabled=false;
 }
 function next(){const q=question();if(q){if(q.type==='factors')store.session.answers.F1=(store.session.answers.F1||[]).filter(id=>currentFactors.some(([key])=>key===id));const m=validateAnswer(q,store.session.answers);if(m){error(m);return;}log('question-complete',q.id+' 답변 완료');if(q.id==='P2'){go('reentry');return;}const i=questions.indexOf(q);go(i===questions.length-1?'review':'q-'+questions[i+1].id);return;}const mapping={welcome:'screening',screening:'start',start:'consult',goal:'return',reentry:'reentry-home'};if(screen==='screening'&&(!store.session.screening.interest||!store.session.screening.used)){error('두 질문에 모두 답해 주세요.');return;}if(mapping[screen])go(mapping[screen]);}
 function taskPoint(event){
@@ -205,6 +215,7 @@ document.addEventListener('click',e=>{
  const a=b.dataset.action;
  if(point)store.log(screen,b.dataset.label||a,{action:a,inert:b.getAttribute('aria-disabled')==='true',point});
  else log(a,b.dataset.label);
+ if(a==='copy-resume'){void copyResumeLink(b);return;}
  if(['return','home'].includes(screen)&&b.closest('.app-shell,.consult-modal'))store.firstAction(b.dataset.label);
  if(b.getAttribute('aria-disabled')==='true')return;
  if(a==='next')next();else if(a==='menu')menu(b);else if(a==='dialog-close')closeDialog();
@@ -237,7 +248,7 @@ document.addEventListener('click',e=>{
  else if(a==='pause-participation'){
   store.pause(screen,'참가자가 참여 중단 선택');
   screen='paused';
-  history.replaceState({screen},'',location.pathname+location.search);
+  history.replaceState({screen},'',location.href);
   render();
   window.scrollTo(0,0);
   void remote.flush();
@@ -271,6 +282,10 @@ document.addEventListener('keydown',e=>{
 window.addEventListener('popstate',e=>{if(!active()||terminal()||store.session.status==='paused'||!validScreens.has(e.state?.screen))return;screen=skipFinishedTask(e.state.screen);if(screen!==e.state.screen)history.replaceState({screen},'',location.href);store.setScreen(screen);render();});
 function connect(){
  remote=preview?preview.createRemote():initRemoteSync(store,{canCapture:()=>ready&&guard.isOwner&&supported()});
+ if(!preview && remote.linkFragment){
+  history.replaceState({screen},'',location.pathname+location.search+remote.linkFragment);
+  void remote.flush();
+ }
  unsubscribe=remote.subscribe(status);
 }
 async function startNew(){
@@ -287,7 +302,10 @@ async function init(){
  initializing=true;
  try{
   let sameTab=false;try{sameTab=!!sessionStorage.getItem('sajumoaut.active.v1');}catch{}
-  store=preview?preview.createStore():createStore();
+  const linked=!preview&&location.hash.startsWith('#resume');
+  const restored=linked?await restorePersonalLink(location.hash):null;
+  if(!guard.isOwner)return;
+  store=preview?preview.createStore():createStore({resumeSession:restored});
   if(!store.restored){
    store.session.questionnaireVersion=await availableVersion();
    store.session.screen='welcome';
@@ -295,11 +313,17 @@ async function init(){
   }
   useVersion();ready=true;
   if(!supported())screen='previous-version';
-  else if(store.restored&&(!sameTab||newRequested||store.session.status==='paused'))screen='resume';
+  else if(store.session.status==='submitted')screen='thanks';
+  else if(store.session.status==='withdrawn')screen='withdrawn';
+  else if(store.restored&&(store.session.status==='paused'||(!linked&&(!sameTab||newRequested))))screen='resume';
   else screen=validScreens.has(store.session.screen)?skipFinishedTask(store.session.screen):'welcome';
   connect();
   render();
-  history.replaceState({screen},'',location.pathname+location.search);
+  history.replaceState({screen},'',location.href);
+ }catch(err){
+  ready=false;
+  app.innerHTML=study('<h1>참여 기록을 열 수 없습니다.</h1><p>'+esc(err.message)+'</p>'+action('다시 시도','retry-link'));
+  app.querySelector('[data-action="retry-link"]').onclick=()=>location.reload();
  }finally{initializing=false;}
 }
 if(previewMode){

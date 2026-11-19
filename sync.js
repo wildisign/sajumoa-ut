@@ -19,6 +19,37 @@ function writeKey(crypto) {
   return [...crypto.getRandomValues(new Uint8Array(32))].map(n => n.toString(16).padStart(2, '0')).join('');
 }
 
+// The fragment stays in the browser. Only the configured results service receives the key.
+export async function restorePersonalLink(fragment) {
+  const match=/^#resume=([a-zA-Z0-9-]{16,100})\.([a-f0-9]{64})$/.exec(fragment);
+  if (!match) throw new Error('개인 링크가 온전하지 않습니다. 원래 창에서 다시 복사해 주세요.');
+  const [,id,key]=match;
+  const queue=JSON.parse(localStorage.getItem(SYNC_KEY)||'{}');
+  const cached=queue[id];
+  const local=validMeta(cached)&&cached.key===key&&cached.snapshot?.id===id ? cached : null;
+  let response;
+  try {
+    response=await fetch(RESULTS_ORIGIN+'/api/sessions/resume',{
+      method:'POST', credentials:'omit', cache:'no-store', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({id,writeKey:key}),signal:AbortSignal.timeout(12000)
+    });
+  } catch {
+    if (local && !local.blocked) return local.snapshot;
+    throw new Error('인터넷 연결을 확인한 뒤 다시 시도해 주세요.');
+  }
+  if (!response.ok) {
+    if (response.status===404 && local && !local.acknowledged && !local.blocked) return local.snapshot;
+    throw new Error(response.status===404?'기록을 찾지 못했습니다. 원래 창에서 저장한 뒤 개인 링크를 다시 열어 주세요.':'진행 기록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+  }
+  const {session,revision:serverRevision}=await response.json();
+  if (session?.id!==id || !Number.isSafeInteger(serverRevision) || serverRevision<1) throw new Error('진행 기록을 확인할 수 없습니다.');
+  if (local && !local.blocked && local.acknowledged===serverRevision) return local.snapshot;
+  const latest=JSON.parse(localStorage.getItem(SYNC_KEY)||'{}');
+  latest[id]={key,revision:serverRevision,acknowledged:serverRevision,fingerprint:fingerprint(session),snapshot:session};
+  localStorage.setItem(SYNC_KEY,JSON.stringify(latest));
+  return session;
+}
+
 /** Recover only the v2 upload queue; unrelated historical browser records are never uploaded. */
 export function initRemoteSync(store, options = {}) {
   const target = options.eventTarget || globalThis;
@@ -132,7 +163,7 @@ export function initRemoteSync(store, options = {}) {
   async function send(id, meta) {
     // Immutable in-flight request: acknowledgments must not replace newer local edits.
     const sent = clone(meta);
-    const body = JSON.stringify({ session: sent.snapshot, writeKey: sent.key, revision: sent.revision });
+    const body = JSON.stringify({ session: sent.snapshot, writeKey: sent.key, revision: sent.revision, baseRevision: sent.acknowledged });
     const bytes = new TextEncoder().encode(body).byteLength;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 12000);
@@ -207,6 +238,10 @@ export function initRemoteSync(store, options = {}) {
   if (Object.values(entries).some(meta=>pending(meta)&&!meta.blocked)) schedule();
   return {
     get status() { return status(); }, flush,
+    get linkFragment() {
+      const key=entries[activeId]?.key;
+      return key ? '#resume='+activeId+'.'+key : '';
+    },
     subscribe(listener) { listeners.add(listener); listener(status()); return () => listeners.delete(listener); },
     dispose() { disposed = true; clearTimeout(debounce); clearInterval(retry); target.removeEventListener('ut-record-change', onChange); target.removeEventListener('online', onOnline); target.removeEventListener('pagehide', onPageHide); target.removeEventListener('storage', onStorage); doc?.removeEventListener('visibilitychange', onVisibility); listeners.clear(); },
   };

@@ -113,6 +113,7 @@ export function createStore(options = {}) {
     },
     newSession() { session = fresh(); restored=false; save(); return session; },
   };
-  if (!session) { session = fresh(); save(); }
+  if (options.resumeSession) { session = options.resumeSession; restored = true; save(); }
+  else if (!session) { session = fresh(); save(); }
   return api;
 }
