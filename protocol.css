@@ -182,3 +182,9 @@ html:has(.v5 .page-action:last-child) {scroll-padding-bottom:96px}
   opacity:var(--footer-fade,0);
   pointer-events:none;
 }
+
+@media (max-width:599px), (max-height:600px) and (pointer:coarse) {
+  .v5 {padding-top:max(8px, env(safe-area-inset-top))}
+  .v5 .study-head, .v5 .study-head:has(.study-menu) {padding-bottom:8px}
+  .v5 .study-body {padding-top:16px}
+}
