@@ -1,6 +1,6 @@
 import {reentryHome} from './reentry-home.js?v=scroll-limit';
 import {createStore} from './store.js';
-import {initRemoteSync,restorePersonalLink} from './sync.js';
+import {hasStartedParticipation,initRemoteSync,restorePersonalLink} from './sync.js';
 import {createTabGuard} from './tab-guard.js';
 import {isPreviewMode,createPreviewRuntime} from './preview-mode.js';
 import {esc,btn,icon,home,modal,phone,payment} from './views.js?v=20261118-list';
@@ -139,6 +139,8 @@ function error(message){const e=document.querySelector('#question-error');if(e){
 function status(){
  if(!remote)return;
  const s=remote.status;
+ const fragment=remote.linkFragment;
+ if(fragment&&location.hash!==fragment)history.replaceState(history.state,'',location.pathname+location.search+fragment);
  warning.hidden=previewMode||(!store.error&&!s.queueError);
  warning.textContent='임시 저장을 완료하지 못했습니다. 제출 후 저장 상태를 확인해 주세요.';
  if(s.state==='conflict'){ready=false;closeDialog(false);clearTimeout(timer);app.innerHTML=study('<h1>다른 창의 기록을 확인해 주세요.</h1><p>다른 브라우저에서 기록이 바뀌었습니다. 이 페이지를 새로고침하면 마지막으로 저장한 화면을 열 수 있습니다.</p>');return;}
@@ -262,7 +264,13 @@ document.addEventListener('click',e=>{
  if(a==='copy-resume'){void copyResumeLink(b);return;}
  if(['return','home'].includes(screen)&&b.closest('.app-shell,.consult-modal'))store.firstAction(b.dataset.label);
  if(b.getAttribute('aria-disabled')==='true')return;
- if(a==='next')next();else if(a==='menu')menu(b);else if(a==='dialog-close')closeDialog();
+ if(a==='next'){
+  if(screen==='welcome'){
+   store.session.participationStartedAt ||= new Date().toISOString();
+   next();
+   void remote.flush();
+  }else next();
+ }else if(a==='menu')menu(b);else if(a==='dialog-close')closeDialog();
  else if(a==='previous-question'&&previousQuestion())go(previousQuestion());
  else if(a==='expand'){
   const expanded=b.getAttribute('aria-expanded')!=='true';
@@ -302,7 +310,7 @@ document.addEventListener('click',e=>{
   go(validScreens.has(store.session.screen)?store.session.screen:'welcome');
  }
  else if(a==='new-person'){
-  if(!terminal()&&supported())store.withdraw(store.session.screen,'새 참여 시작');
+  if(!terminal()&&supported()&&hasStartedParticipation(store.session))store.withdraw(store.session.screen,'새 참여 시작');
   startNew();
  }
  else if(a==='preview-restart'&&preview){preview.reset();startNew();}
@@ -325,16 +333,18 @@ document.addEventListener('keydown',e=>{
 });
 window.addEventListener('popstate',e=>{if(!active()||terminal()||store.session.status==='paused'||!validScreens.has(e.state?.screen))return;screen=skipFinishedTask(e.state.screen);if(screen!==e.state.screen)history.replaceState({screen},'',location.href);store.setScreen(screen);render();});
 function connect(){
- remote=preview?preview.createRemote():initRemoteSync(store,{canCapture:()=>ready&&guard.isOwner&&supported()});
- if(!preview && remote.linkFragment){
-  history.replaceState({screen},'',location.pathname+location.search+remote.linkFragment);
-  void remote.flush();
- }
+ remote=preview?preview.createRemote():initRemoteSync(store,{
+  canCapture:()=>ready&&guard.isOwner&&supported()&&hasStartedParticipation(store.session),
+  shouldUpload:hasStartedParticipation
+ });
  unsubscribe=remote.subscribe(status);
+ if(remote.linkFragment)void remote.flush();
 }
 async function startNew(){
  unsubscribe?.();remote?.dispose();
  if(preview)store=preview.createStore();else store.newSession();
+ history.replaceState({screen},'',location.pathname+location.search);
+ store.session.participationStartedAt=null;
  store.session.questionnaireVersion=await availableVersion();
  useVersion();store.session.screen='welcome';
  store.save();
@@ -350,7 +360,9 @@ async function init(){
   const restored=linked?await restorePersonalLink(location.hash):null;
   if(!guard.isOwner)return;
   store=preview?preview.createStore():createStore({resumeSession:restored});
+  if(store.restored&&!linked&&!hasStartedParticipation(store.session)&&store.session.participationStartedAt===undefined)store.newSession();
   if(!store.restored){
+   store.session.participationStartedAt=null;
    store.session.questionnaireVersion=await availableVersion();
    store.session.screen='welcome';
    store.save();
@@ -359,6 +371,7 @@ async function init(){
   if(!supported())screen='previous-version';
   else if(store.session.status==='submitted')screen='thanks';
   else if(store.session.status==='withdrawn')screen='withdrawn';
+  else if(!hasStartedParticipation(store.session))screen='welcome';
   else if(store.restored&&(store.session.status==='paused'||(!linked&&(!sameTab||newRequested))))screen='resume';
   else screen=validScreens.has(store.session.screen)?skipFinishedTask(store.session.screen):'welcome';
   connect();

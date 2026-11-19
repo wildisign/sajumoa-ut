@@ -5,6 +5,15 @@ const clone = value => JSON.parse(JSON.stringify(value));
 const revision = value => Number.isSafeInteger(value) && value >= 0 ? value : 0;
 const validMeta = meta => meta && typeof meta === 'object' && /^[a-f0-9]{64}$/.test(meta.key || '') && revision(meta.revision) === meta.revision && revision(meta.acknowledged) === meta.acknowledged;
 
+export function hasStartedParticipation(session) {
+  if (!session) return false;
+  if (session.participationStartedAt !== undefined) return !!session.participationStartedAt;
+  // Legacy clients did not save the acceptance time, but recorded the welcome action.
+  const screen = session.lifecycle?.lastActiveScreen || session.screen;
+  const afterWelcome = screen && !['welcome', 'resume', 'paused', 'withdrawn', 'previous-version'].includes(screen);
+  return !!(afterWelcome || session.events?.some(event => event.screen === 'welcome' && event.action === 'next'));
+}
+
 export function resultSnapshot(session) {
   const copy = clone(session);
   delete copy.callRemaining;
@@ -60,6 +69,7 @@ export function initRemoteSync(store, options = {}) {
   const origin = options.origin || RESULTS_ORIGIN;
   const crypto = options.crypto || globalThis.crypto;
   const canCapture = options.canCapture || (() => true);
+  const shouldUpload = options.shouldUpload || (() => true);
   const listeners = new Set();
   const activeId = store.session.id;
   let entries = {}, backup = true, disposed = false, sending = null, debounce;
@@ -112,7 +122,7 @@ export function initRemoteSync(store, options = {}) {
       backup = true;
     } catch { backup = false; }
   }
-  function pending(meta) { return !!meta?.snapshot && meta.revision > meta.acknowledged; }
+  function pending(meta) { return !!meta?.snapshot && shouldUpload(meta.snapshot) && meta.revision > meta.acknowledged; }
   function status() {
     const active = entries[activeId];
     const conflict = activeConflict || !!active?.blocked;
@@ -240,7 +250,7 @@ export function initRemoteSync(store, options = {}) {
     get status() { return status(); }, flush,
     get linkFragment() {
       const key=entries[activeId]?.key;
-      return key ? '#resume='+activeId+'.'+key : '';
+      return key && shouldUpload(store.session) ? '#resume='+activeId+'.'+key : '';
     },
     subscribe(listener) { listeners.add(listener); listener(status()); return () => listeners.delete(listener); },
     dispose() { disposed = true; clearTimeout(debounce); clearInterval(retry); target.removeEventListener('ut-record-change', onChange); target.removeEventListener('online', onOnline); target.removeEventListener('pagehide', onPageHide); target.removeEventListener('storage', onStorage); doc?.removeEventListener('visibilitychange', onVisibility); listeners.clear(); },
