@@ -188,3 +188,16 @@ html:has(.v5 .page-action:last-child) {scroll-padding-bottom:96px}
   .v5 .study-head, .v5 .study-head:has(.study-menu) {padding-bottom:8px}
   .v5 .study-body {padding-top:16px}
 }
+
+.thanks-page .study-body {justify-content:flex-start}
+.thanks-page #completion-title {margin-top:auto}
+.completion-actions {margin-top:auto;padding-top:24px;display:grid;gap:10px}
+.completion-actions[hidden] {display:none}
+.completion-actions button,.followup-form button {margin:0;width:100%}
+.completion-message {text-align:center;font-size:14px}
+.completion-message:empty,.followup-form .form-error:empty {display:none}
+.followup-form {display:grid;gap:12px}
+.followup-form p {margin:0;font-size:14px;line-height:1.6}
+.followup-form label {font-size:14px;font-weight:600}
+.followup-form input,#public-study-link {box-sizing:border-box;width:100%;min-height:46px;font:inherit;font-size:16px;padding:10px;border:1px solid #a5b8bf;border-radius:8px}
+.reference-dialog:has(.followup-form) {max-height:90dvh;overflow:auto}

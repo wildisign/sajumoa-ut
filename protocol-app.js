@@ -85,7 +85,7 @@ function render(){closeDialog(false);clearTimeout(timer);document.body.classList
  case 'reentry-home':app.innerHTML=reentryHome();break;
  case 'reentry-modal':app.innerHTML=reentryModal();break;
  case 'review':app.innerHTML=finalFeedback(questions.find(item=>item.id==='feedback'));break;
- case 'thanks':app.innerHTML=study(`<h1 id="completion-title" aria-live="polite">답변을 저장하고 있습니다.</h1><p id="save-status" role="status" aria-live="polite"></p><p id="save-detail" class="muted"></p>${btn('retry','저장 다시 시도','secondary')}`,'thanks-page');break;
+ case 'thanks':app.innerHTML=study(`<h1 id="completion-title" aria-live="polite">답변을 저장하고 있습니다.</h1><p id="save-status" role="status" aria-live="polite"></p><p id="save-detail" class="muted"></p>${btn('retry','저장 다시 시도','secondary')}<footer class="completion-actions" hidden>${btn('followup','후속 참여 희망','primary')}${btn('share-study','테스트 공유','secondary')}<span class="completion-message" role="status"></span></footer>`,'thanks-page');break;
  case 'resume':app.innerHTML=study(`${title('진행 기록','이어서 진행할까요?')}<p>이 브라우저에 이전 진행 화면과 답변이 저장되어 있습니다.</p>${action('이어서 하기','resume')}${btn('new-person','새 참여 시작','secondary spaced')}`);break;
  case 'paused':app.innerHTML=study(`<h1>참여를 중단했습니다.</h1><p>${previewMode?'이 창에서 이어서 진행할 수 있습니다.':'지금 보고 있는 개인 링크로 다시 열면 이어서 진행할 수 있습니다.'}</p>${action('이어서 하기','resume')}`);break;
  case 'previous-version':app.innerHTML=study(`${title('진행 기록','테스트가 업데이트됐어요')}<p>새 질문에 답하려면 처음부터 시작해 주세요.</p>${action('새 참여 시작','new-person')}`);break;
@@ -149,6 +149,7 @@ function status(){
  heading.textContent=complete?'참여해 주셔서 감사합니다.':failed?'답변을 아직 전송하지 못했습니다.':'답변을 저장하고 있습니다.';
  document.querySelector('#save-detail').textContent=previewMode?'미리보기 답변은 저장·전송되지 않습니다.':complete?'':failed?'인터넷 연결을 확인하고 다시 시도해 주세요.':'저장 완료까지 이 창을 유지해 주세요.';
  document.querySelector('[data-action="retry"]').hidden=!failed;
+ document.querySelector('.completion-actions').hidden=!complete;
 }
 const paymentPromptDelay=5000;
 function schedulePaymentPrompt(){
@@ -193,6 +194,44 @@ async function copyResumeLink(button){
  catch{const field=document.createElement('input');field.readOnly=true;field.value=link;field.setAttribute('aria-label','내 참여 이어하기 링크');button.after(field);field.select();}
  button.disabled=false;
 }
+const publicStudyURL='https://wildisign.github.io/sajumoa-ut/';
+async function shareStudy(trigger){
+ const message=app.querySelector('.completion-message');
+ try{
+  await navigator.clipboard.writeText(publicStudyURL);
+  message.textContent='테스트 링크를 복사했어요.';
+ }catch{
+  openDialog('<h2>테스트 링크 복사</h2><label for="public-study-link">링크를 선택해 복사해 주세요.</label><input id="public-study-link" readonly>'+btn('dialog-close','닫기','secondary'),trigger,true);
+  const field=dialog.querySelector('input');
+  field.value=publicStudyURL;field.select();
+  try{if(document.execCommand('copy')){closeDialog();message.textContent='테스트 링크를 복사했어요.';}}catch{}
+ }
+}
+function openFollowup(trigger){
+ openDialog(`<h2>이메일을 입력해 주세요</h2><form class="followup-form">
+ <p>후속 테스트 참여를 희망하시면 연락받을 이메일을 남겨 주세요. 연구 진행자가 참여 기록과 함께 확인합니다.</p>
+ <label for="followup-email">이메일 주소</label><input id="followup-email" type="email" autocomplete="email" inputmode="email" maxlength="254" required placeholder="name@example.com">
+ <p class="form-error" role="alert"></p><button type="submit" class="primary">후속 참여 신청</button>${btn('dialog-close','취소','secondary')}</form>`,trigger,true);
+ const form=dialog.querySelector('form');
+ form.querySelector('input').focus();
+ form.onsubmit=async event=>{
+  event.preventDefault();
+  const submit=form.querySelector('[type=submit]');
+  if(submit.disabled)return;
+  submit.disabled=true;
+  try{
+   if(!previewMode){
+    const response=await fetch(RESULTS_ORIGIN+'/api/sessions/followup',{method:'POST',credentials:'omit',headers:{'Content-Type':'application/json'},
+     body:JSON.stringify({id:store.session.id,writeKey:remote.linkFragment.split('.').pop(),email:form.querySelector('input').value.trim()}),signal:AbortSignal.timeout(12000)});
+    const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.error||'신청을 저장하지 못했습니다.');
+   }
+   if(!form.isConnected)return;
+   closeDialog();
+   app.querySelector('.completion-message').textContent=previewMode?'미리보기에서는 이메일을 저장하지 않습니다.':'후속 참여 신청을 받았어요.';
+  }catch(err){form.querySelector('[role=alert]').textContent=err instanceof TypeError||err.name==='TimeoutError'?'연결을 확인하고 다시 신청해 주세요.':err.message;}
+  finally{submit.disabled=false;}
+ };
+}
 function next(){const q=question();if(q){if(q.type==='factors')store.session.answers.F1=(store.session.answers.F1||[]).filter(id=>currentFactors.some(([key])=>key===id));const m=validateAnswer(q,store.session.answers);if(m){error(m);return;}log('question-complete',q.id+' 답변 완료');if(q.id==='P2'){go('reentry');return;}const i=questions.indexOf(q);go(i===questions.length-1?'review':'q-'+questions[i+1].id);return;}const mapping={welcome:'screening',screening:'start',start:'consult',goal:'return',reentry:'reentry-home'};if(screen==='screening'&&(!store.session.screening.interest||!store.session.screening.used)){error('두 질문에 모두 답해 주세요.');return;}if(mapping[screen])go(mapping[screen]);}
 function taskPoint(event){
  const target=event.target;
@@ -207,6 +246,11 @@ function taskPoint(event){
 document.addEventListener('click',e=>{
  if(!active()||e.target.closest('.reconnect-card .card-close'))return;
  const b=e.target.closest('button[data-action]');
+ if(screen==='thanks'){
+  if(b?.dataset.action==='followup'){openFollowup(b);return;}
+  if(b?.dataset.action==='share-study'){void shareStudy(b);return;}
+  if(b?.dataset.action==='dialog-close'){closeDialog();return;}
+ }
  const point=taskPoint(e);
  if(!b||b.disabled){
   if(point)store.log(screen,(e.target.closest('[aria-label]')?.getAttribute('aria-label')||e.target.textContent?.trim().slice(0,45)||'화면 여백'),{action:'surface-tap',inert:true,point});
@@ -273,7 +317,7 @@ document.addEventListener('keydown',e=>{
  if(!scope||(!dialog&&question()))return;
  if(e.key==='Escape'&&dialog){e.preventDefault();closeDialog();return;}
  if(e.key!=='Tab')return;
- const list=[...scope.querySelectorAll('button:not([disabled]),[tabindex="0"]')].filter(n=>n.getAttribute('aria-disabled')!=='true');
+ const list=[...scope.querySelectorAll('button:not([disabled]),input:not([disabled]),[tabindex="0"]')].filter(n=>n.getAttribute('aria-disabled')!=='true');
  if(!dialog)list.push(...app.querySelectorAll('.test-controls-bar button'),...document.querySelectorAll('[data-action="preview-restart"]'));
  const first=list[0],last=list.at(-1);
  if(e.shiftKey&&(document.activeElement===first||!list.includes(document.activeElement))){e.preventDefault();last?.focus();}
